@@ -23,6 +23,7 @@
 .ProseMirror {
   outline: none;
   min-height: 100%;
+  color: var(--note-text);
 }
 
 .ProseMirror p {
@@ -72,14 +73,14 @@
   top: 4px;
   width: 14px;
   height: 14px;
-  border: 1.5px solid rgba(0, 0, 0, 0.4);
+  border: 1.5px solid var(--note-checkbox-border);
   border-radius: 3px;
   cursor: pointer;
 }
 
 .ProseMirror li[data-checked="true"]::before {
-  background: rgba(0, 0, 0, 0.6);
-  border-color: rgba(0, 0, 0, 0.6);
+  background: var(--note-checkbox-checked);
+  border-color: var(--note-checkbox-checked);
 }
 
 .ProseMirror li[data-checked="true"]::after {
@@ -92,6 +93,10 @@
   font-weight: bold;
 }
 
+[data-theme="dark"] .ProseMirror li[data-checked="true"]::after {
+  color: #1e1e1e;
+}
+
 .ProseMirror li[data-checked="true"] > * {
   opacity: 0.6;
   text-decoration: line-through;
@@ -99,15 +104,15 @@
 
 /* Blockquote */
 .ProseMirror blockquote {
-  border-left: 3px solid rgba(0, 0, 0, 0.2);
+  border-left: 3px solid var(--note-blockquote-border);
   margin: 4px 0;
   padding: 2px 12px;
-  color: rgba(0, 0, 0, 0.7);
+  color: var(--note-blockquote-text);
 }
 
 /* Code */
 .ProseMirror code {
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--note-code-bg);
   padding: 1px 4px;
   border-radius: 3px;
   font-family: 'D2Coding', monospace;
@@ -115,7 +120,7 @@
 }
 
 .ProseMirror pre {
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--note-code-bg);
   padding: 8px 12px;
   border-radius: 4px;
   overflow-x: auto;
@@ -130,19 +135,19 @@
 /* Horizontal rule */
 .ProseMirror hr {
   border: none;
-  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--note-hr);
   margin: 8px 0;
 }
 
 /* Links */
 .ProseMirror a {
-  color: #2563eb;
+  color: var(--text-link);
   text-decoration: underline;
   cursor: pointer;
 }
 
 .ProseMirror a:hover {
-  color: #1d4ed8;
+  color: var(--text-link-hover);
 }
 
 /* Bold/Italic */
@@ -156,7 +161,7 @@
 
 /* Selection */
 .ProseMirror ::selection {
-  background: rgba(37, 99, 235, 0.2);
+  background: var(--note-selection);
 }
 
 /* Placeholder for empty editor */

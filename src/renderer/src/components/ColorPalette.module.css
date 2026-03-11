@@ -6,11 +6,16 @@
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 8px;
   padding: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-palette);
   z-index: 10;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.container.dark {
+  background: #2a2a2a;
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .presets {
@@ -33,38 +38,38 @@
 }
 
 .swatch:hover {
-  border-color: rgba(0, 0, 0, 0.3);
+  border-color: var(--note-text-muted);
 }
 
 .swatchSelected {
-  border-color: rgba(0, 0, 0, 0.6);
+  border-color: var(--note-text-secondary);
 }
 
 .swatchInner {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--note-dot-border);
 }
 
 .customBtn {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px dashed rgba(0, 0, 0, 0.3);
+  border: 2px dashed var(--note-text-muted);
   cursor: pointer;
   background: none;
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--note-text-muted);
   padding: 0;
 }
 
 .customBtn:hover {
-  border-color: rgba(0, 0, 0, 0.5);
-  color: rgba(0, 0, 0, 0.6);
+  border-color: var(--note-text-secondary);
+  color: var(--note-text-secondary);
 }
 
 .pickerWrapper {

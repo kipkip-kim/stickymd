@@ -1,6 +1,6 @@
 .titlebar {
   -webkit-app-region: drag;
-  height: 32px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -36,11 +36,11 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--note-dot-border);
 }
 
 .colorBtn:hover .colorDot {
-  border-color: rgba(0, 0, 0, 0.5);
+  border-color: var(--note-text-secondary);
 }
 
 .title {
@@ -51,6 +51,7 @@
   white-space: nowrap;
   flex: 1;
   margin-right: 4px;
+  color: var(--note-text);
 }
 
 .buttons {
@@ -73,19 +74,23 @@
   justify-content: center;
   border-radius: 4px;
   font-size: 14px;
-  color: inherit;
+  color: var(--note-text);
   opacity: 0.7;
   padding: 0;
 }
 
 .btn:hover {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--note-hover);
 }
 
 .btnActive {
   opacity: 1;
   color: #e67700;
+}
+
+[data-theme="dark"] .btnActive {
+  color: #ffb347;
 }
 
 .closeBtn:hover {

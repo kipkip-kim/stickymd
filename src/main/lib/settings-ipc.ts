@@ -7,6 +7,7 @@ import { closeAllMemoWindows } from './window-manager'
 import { TRASH_DIR_NAME } from './constants'
 import type { AppSettings } from '../../shared/types'
 import type { AppState } from './types'
+import { onDarkModeSettingChanged } from './theme'
 
 interface BackupBundle {
   version: 1
@@ -243,6 +244,11 @@ export function registerSettingsIPC(): void {
       ...current,
       ...updates
     }))
+
+    // Broadcast theme change if darkMode was updated
+    if (updates.darkMode !== undefined) {
+      onDarkModeSettingChanged().catch((e) => console.error('theme broadcast failed:', e))
+    }
 
     return { success: true, settings: updated }
   })

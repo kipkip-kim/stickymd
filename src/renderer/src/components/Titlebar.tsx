@@ -7,6 +7,7 @@ interface TitlebarProps {
   isRolledUp: boolean
   title?: string
   color: string
+  isDark: boolean
   onColorChange: (color: string) => void
 }
 
@@ -15,6 +16,7 @@ export default function Titlebar({
   isRolledUp,
   title,
   color,
+  isDark,
   onColorChange
 }: TitlebarProps): React.JSX.Element {
   const [isPinned, setIsPinned] = useState(false)
@@ -61,20 +63,24 @@ export default function Titlebar({
     }
   }, [memoId])
 
+  const handleOpenManager = useCallback(async () => {
+    try {
+      await window.api.openManager()
+    } catch (e) {
+      console.error('openManager failed:', e)
+    }
+  }, [])
+
   return (
     <div className={styles.titlebar} onDoubleClick={handleDoubleClick}>
       <div className={styles.leftButtons}>
-        {/* Color button */}
         <button
-          className={styles.colorBtn}
-          onClick={() => setShowPalette(!showPalette)}
-          title="색상 변경"
+          className={styles.btn}
+          onClick={handleNew}
+          title="새 메모"
         >
-          <div className={styles.colorDot} style={{ backgroundColor: color }} />
+          +
         </button>
-      </div>
-      <span className={styles.title}>{title || '새 메모'}</span>
-      <div className={styles.buttons}>
         <button
           className={`${styles.btn} ${isPinned ? styles.btnActive : ''}`}
           onClick={handlePin}
@@ -84,17 +90,28 @@ export default function Titlebar({
         </button>
         <button
           className={styles.btn}
+          onClick={handleOpenManager}
+          title="메모 목록"
+        >
+          ☰
+        </button>
+        <button
+          className={styles.btn}
           onClick={handleRollup}
           title={isRolledUp ? '펼치기' : '접기'}
         >
           {isRolledUp ? '▼' : '▲'}
         </button>
+      </div>
+      <span className={styles.title}>{title || '새 메모'}</span>
+      <div className={styles.buttons}>
+        {/* Phase 13b: alarm button will be added here */}
         <button
-          className={styles.btn}
-          onClick={handleNew}
-          title="새 메모"
+          className={styles.colorBtn}
+          onClick={() => setShowPalette(!showPalette)}
+          title="색상 변경"
         >
-          +
+          <div className={styles.colorDot} style={{ backgroundColor: color }} />
         </button>
         <button
           className={`${styles.btn} ${styles.closeBtn}`}
@@ -107,6 +124,7 @@ export default function Titlebar({
       {showPalette && (
         <ColorPalette
           currentColor={color}
+          isDark={isDark}
           onColorChange={onColorChange}
           onClose={() => setShowPalette(false)}
         />

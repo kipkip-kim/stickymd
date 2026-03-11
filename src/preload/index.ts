@@ -77,6 +77,13 @@ const api = {
   restore: (): Promise<boolean> =>
     ipcRenderer.invoke('settings:restore'),
 
+  // Theme
+  getTheme: (): Promise<'light' | 'dark'> =>
+    ipcRenderer.invoke('theme:get'),
+  onThemeChanged: (callback: (theme: 'light' | 'dark') => void): void => {
+    ipcRenderer.on('theme:changed', (_event, theme) => callback(theme))
+  },
+
   // Events from main
   onMemoInit: (callback: (data: { memoId: string; isRolledUp: boolean }) => void): void => {
     ipcRenderer.on('memo:init', (_event, data) => callback(data))

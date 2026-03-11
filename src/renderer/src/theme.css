@@ -1,0 +1,82 @@
+/* Theme CSS Variables */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+}
+
+:root,
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-hover: rgba(0, 0, 0, 0.06);
+  --bg-active: rgba(0, 0, 0, 0.1);
+  --bg-code: rgba(0, 0, 0, 0.06);
+  --bg-input: #ffffff;
+
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-link: #2563eb;
+  --text-link-hover: #1d4ed8;
+
+  --border-primary: #e0e0e0;
+  --border-secondary: #dddddd;
+  --border-focus: #aaaaaa;
+
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-palette: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* Note-specific (for overlays on note color backgrounds) */
+  --note-text: rgba(0, 0, 0, 0.87);
+  --note-text-secondary: rgba(0, 0, 0, 0.6);
+  --note-text-muted: rgba(0, 0, 0, 0.4);
+  --note-border: rgba(0, 0, 0, 0.08);
+  --note-hover: rgba(0, 0, 0, 0.1);
+  --note-code-bg: rgba(0, 0, 0, 0.06);
+  --note-selection: rgba(37, 99, 235, 0.2);
+  --note-blockquote-border: rgba(0, 0, 0, 0.2);
+  --note-blockquote-text: rgba(0, 0, 0, 0.7);
+  --note-hr: rgba(0, 0, 0, 0.15);
+  --note-checkbox-border: rgba(0, 0, 0, 0.4);
+  --note-checkbox-checked: rgba(0, 0, 0, 0.6);
+  --note-dot-border: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #2a2a2a;
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bg-active: rgba(255, 255, 255, 0.12);
+  --bg-code: rgba(255, 255, 255, 0.08);
+  --bg-input: #2a2a2a;
+
+  --text-primary: #e0e0e0;
+  --text-secondary: #aaaaaa;
+  --text-muted: #777777;
+  --text-link: #6ba3f7;
+  --text-link-hover: #93bffa;
+
+  --border-primary: #3a3a3a;
+  --border-secondary: #444444;
+  --border-focus: #666666;
+
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-palette: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  /* Note-specific (for dark note backgrounds) */
+  --note-text: rgba(255, 255, 255, 0.87);
+  --note-text-secondary: rgba(255, 255, 255, 0.6);
+  --note-text-muted: rgba(255, 255, 255, 0.4);
+  --note-border: rgba(255, 255, 255, 0.08);
+  --note-hover: rgba(255, 255, 255, 0.1);
+  --note-code-bg: rgba(255, 255, 255, 0.08);
+  --note-selection: rgba(107, 163, 247, 0.3);
+  --note-blockquote-border: rgba(255, 255, 255, 0.2);
+  --note-blockquote-text: rgba(255, 255, 255, 0.7);
+  --note-hr: rgba(255, 255, 255, 0.15);
+  --note-checkbox-border: rgba(255, 255, 255, 0.4);
+  --note-checkbox-checked: rgba(255, 255, 255, 0.6);
+  --note-dot-border: rgba(255, 255, 255, 0.2);
+}

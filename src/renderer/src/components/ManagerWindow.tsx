@@ -515,6 +515,20 @@ function SettingsPanel(): React.JSX.Element {
         </select>
       </div>
 
+      {/* Dark mode */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>테마</label>
+        <select
+          className={styles.settingSelect}
+          value={settings.darkMode}
+          onChange={(e) => updateSetting('darkMode', e.target.value as 'system' | 'light' | 'dark')}
+        >
+          <option value="system">시스템 설정 따르기</option>
+          <option value="light">라이트</option>
+          <option value="dark">다크</option>
+        </select>
+      </div>
+
       {/* Auto save seconds */}
       <div className={styles.settingRow}>
         <label className={styles.settingLabel}>자동 저장 주기</label>

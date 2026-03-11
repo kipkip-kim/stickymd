@@ -3,14 +3,23 @@ import { HexColorPicker } from 'react-colorful'
 import { COLOR_PRESETS } from '../constants/colors'
 import styles from './ColorPalette.module.css'
 
+function isLightColor(hex: string): boolean {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128
+}
+
 interface ColorPaletteProps {
   currentColor: string
+  isDark: boolean
   onColorChange: (color: string) => void
   onClose: () => void
 }
 
 export default function ColorPalette({
   currentColor,
+  isDark,
   onColorChange,
   onClose
 }: ColorPaletteProps): React.JSX.Element {
@@ -46,7 +55,7 @@ export default function ColorPalette({
   }
 
   return (
-    <div className={styles.container} ref={containerRef}>
+    <div className={`${styles.container} ${isDark ? styles.dark : ''}`} ref={containerRef}>
       <div className={styles.presets}>
         {COLOR_PRESETS.map((preset) => (
           <button
@@ -78,6 +87,7 @@ export default function ColorPalette({
               border: '1px solid rgba(0,0,0,0.2)',
               borderRadius: 4,
               background: customColor,
+              color: isLightColor(customColor) ? '#000' : '#fff',
               cursor: 'pointer',
               fontSize: 12
             }}
