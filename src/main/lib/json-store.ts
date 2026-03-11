@@ -19,7 +19,9 @@ export class JsonStore<T> {
     if (this.cachedData !== null) return this.cachedData
     try {
       const raw = await readFile(this.filePath, 'utf-8')
-      this.cachedData = JSON.parse(raw) as T
+      const parsed = JSON.parse(raw) as T
+      // Merge with defaults so new fields are always present
+      this.cachedData = { ...this.defaultValue, ...parsed }
       return this.cachedData
     } catch {
       // B13/state corruption: return default on any read error

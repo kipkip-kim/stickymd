@@ -503,6 +503,8 @@ function SettingsPanel(): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [pathError, setPathError] = useState<string | null>(null)
+  const [hotkeyError, setHotkeyError] = useState<string | null>(null)
+  const [recordingHotkey, setRecordingHotkey] = useState(false)
   const [systemFonts, setSystemFonts] = useState<string[]>([])
   const [fontSearch, setFontSearch] = useState('')
   const [showFontDropdown, setShowFontDropdown] = useState(false)
@@ -542,11 +544,16 @@ function SettingsPanel(): React.JSX.Element {
   const updateSetting = useCallback(async <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings((prev) => prev ? { ...prev, [key]: value } : prev)
     setPathError(null)
+    setHotkeyError(null)
 
     try {
       const result = await window.api.updateSettings({ [key]: value })
       if (!result.success && result.error) {
-        setPathError(result.error)
+        if (key === 'globalHotkey') {
+          setHotkeyError(result.error)
+        } else {
+          setPathError(result.error)
+        }
         // Revert on failure
         const fresh = await window.api.getSettings()
         setSettings(fresh)
@@ -555,6 +562,38 @@ function SettingsPanel(): React.JSX.Element {
       console.error('updateSettings failed:', e)
     }
   }, [])
+
+  // Hotkey recorder: capture key combo on keydown
+  const handleHotkeyKeyDown = useCallback((e: React.KeyboardEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    // Ignore lone modifier keys
+    const key = e.key
+    if (['Control', 'Shift', 'Alt', 'Meta'].includes(key)) return
+
+    const parts: string[] = []
+    if (e.ctrlKey) parts.push('Ctrl')
+    if (e.altKey) parts.push('Alt')
+    if (e.shiftKey) parts.push('Shift')
+
+    // Need at least one modifier
+    if (parts.length === 0) return
+
+    // Map special keys to Electron accelerator names
+    const keyMap: Record<string, string> = {
+      ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down',
+      ArrowLeft: 'Left', ArrowRight: 'Right',
+      Delete: 'Delete', Backspace: 'Backspace',
+      Enter: 'Enter', Escape: 'Escape', Tab: 'Tab'
+    }
+    const mappedKey = keyMap[key] || (key.length === 1 ? key.toUpperCase() : key)
+    parts.push(mappedKey)
+
+    const accelerator = parts.join('+')
+    setRecordingHotkey(false)
+    updateSetting('globalHotkey', accelerator)
+  }, [updateSetting])
 
   const handleSelectDirectory = useCallback(async () => {
     try {
@@ -751,6 +790,34 @@ function SettingsPanel(): React.JSX.Element {
           />
           <span>Windows 시작 시 자동 실행</span>
         </label>
+      </div>
+
+      {/* Global hotkey */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>글로벌 단축키</label>
+        <div className={styles.settingInputGroup}>
+          <input
+            type="text"
+            className={styles.settingSelect}
+            value={recordingHotkey ? '키 조합을 누르세요...' : (settings.globalHotkey || '없음')}
+            readOnly
+            onFocus={() => setRecordingHotkey(true)}
+            onBlur={() => setRecordingHotkey(false)}
+            onKeyDown={handleHotkeyKeyDown}
+            style={{ cursor: 'pointer', caretColor: 'transparent' }}
+          />
+          {settings.globalHotkey && (
+            <button
+              className={styles.actionBtn}
+              onClick={() => updateSetting('globalHotkey', '')}
+              title="단축키 해제"
+              style={{ padding: '4px 8px', fontSize: 12 }}
+            >
+              해제
+            </button>
+          )}
+        </div>
+        {hotkeyError && <div className={styles.settingErrorText}>{hotkeyError}</div>}
       </div>
 
       {/* Backup / Restore */}
