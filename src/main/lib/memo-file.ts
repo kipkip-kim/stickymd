@@ -166,66 +166,83 @@ export async function listMemos(): Promise<MemoData[]> {
   }
 }
 
+/** Get a suitable parent window for dialogs */
+function getDialogParent(): BrowserWindow | undefined {
+  return BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? undefined
+}
+
 /** Export a memo to user-chosen location */
 export async function exportMemo(memoId: string, includeFrontmatter: boolean): Promise<boolean> {
   const memo = await readMemo(memoId)
   if (!memo) return false
 
+  const parent = getDialogParent()
+  if (!parent) return false
+
   const defaultName = `${memo.frontmatter.title.replace(/[<>:"/\\|?*]/g, '_')}.md`
-  const win = BrowserWindow.getFocusedWindow()
-  const result = await dialog.showSaveDialog(win ?? BrowserWindow.getAllWindows()[0], {
+  const result = await dialog.showSaveDialog(parent, {
     defaultPath: defaultName,
     filters: [{ name: 'Markdown', extensions: ['md'] }]
   })
 
   if (result.canceled || !result.filePath) return false
 
-  let content: string
-  if (includeFrontmatter) {
-    const raw = await readFile(join(await getSaveDir(), `${memoId}.md`), 'utf-8')
-    content = raw
-  } else {
-    content = memo.content
+  try {
+    let content: string
+    if (includeFrontmatter) {
+      content = await readFile(join(await getSaveDir(), `${memoId}.md`), 'utf-8')
+    } else {
+      content = memo.content
+    }
+    await writeFile(result.filePath, content, 'utf-8')
+    return true
+  } catch (e) {
+    console.error('exportMemo write failed:', e)
+    return false
   }
-
-  await writeFile(result.filePath, content, 'utf-8')
-  return true
 }
 
 /** Import a memo from user-chosen file */
 export async function importMemo(): Promise<MemoData | null> {
-  const win = BrowserWindow.getFocusedWindow()
-  const result = await dialog.showOpenDialog(win ?? BrowserWindow.getAllWindows()[0], {
+  const parent = getDialogParent()
+  if (!parent) return null
+
+  const result = await dialog.showOpenDialog(parent, {
     filters: [{ name: 'Markdown', extensions: ['md'] }],
     properties: ['openFile']
   })
 
   if (result.canceled || result.filePaths.length === 0) return null
 
-  const filePath = result.filePaths[0]
-  const raw = await readFile(filePath, 'utf-8')
-  const parsed = matter(raw, { excerpt: false })
+  try {
+    const filePath = result.filePaths[0]
+    const raw = await readFile(filePath, 'utf-8')
+    const parsed = matter(raw, { excerpt: false })
 
-  const newId = randomUUID()
-  const saveDir = await getSaveDir()
+    const newId = randomUUID()
+    const saveDir = await getSaveDir()
 
-  // Preserve existing frontmatter or create new
-  const fm = parsed.data as Partial<MemoFrontmatter>
-  const frontmatter: MemoFrontmatter = {
-    title: fm.title || extractTitle(parsed.content),
-    created: fm.created || new Date().toISOString(),
-    modified: new Date().toISOString(),
-    color: fm.color || '#FFF9B1',
-    pinned: fm.pinned ?? false,
-    opacity: fm.opacity ?? 1,
-    fontSize: fm.fontSize ?? 16,
-    ...(fm.alarm ? { alarm: fm.alarm } : {})
+    // Preserve existing frontmatter or create new
+    const fm = parsed.data as Partial<MemoFrontmatter>
+    const frontmatter: MemoFrontmatter = {
+      title: fm.title || extractTitle(parsed.content),
+      created: fm.created || new Date().toISOString(),
+      modified: new Date().toISOString(),
+      color: fm.color || '#FFF9B1',
+      pinned: fm.pinned ?? false,
+      opacity: fm.opacity ?? 1,
+      fontSize: fm.fontSize ?? 16,
+      ...(fm.alarm ? { alarm: fm.alarm } : {})
+    }
+
+    const fileContent = matter.stringify(parsed.content, frontmatter)
+    await writeFile(join(saveDir, `${newId}.md`), fileContent, 'utf-8')
+
+    return { id: newId, frontmatter, content: parsed.content }
+  } catch (e) {
+    console.error('importMemo failed:', e)
+    return null
   }
-
-  const fileContent = matter.stringify(parsed.content, frontmatter)
-  await writeFile(join(saveDir, `${newId}.md`), fileContent, 'utf-8')
-
-  return { id: newId, frontmatter, content: parsed.content }
 }
 
 /** Register IPC handlers for memo file operations */

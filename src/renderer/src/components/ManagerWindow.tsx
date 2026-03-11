@@ -152,7 +152,7 @@ function MemoList(): React.JSX.Element {
       })
     }
 
-    // Sort
+    // Sort (secondary sort by id for stability)
     const sorted = [...result].sort((a, b) => {
       let cmp = 0
       if (sortBy === 'title') {
@@ -162,6 +162,7 @@ function MemoList(): React.JSX.Element {
       } else {
         cmp = new Date(a.frontmatter.modified).getTime() - new Date(b.frontmatter.modified).getTime()
       }
+      if (cmp === 0) cmp = a.id.localeCompare(b.id)
       return sortOrder === 'desc' ? -cmp : cmp
     })
 
