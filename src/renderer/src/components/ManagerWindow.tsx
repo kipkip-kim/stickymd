@@ -76,7 +76,7 @@ export default function ManagerWindow(): React.JSX.Element {
       </div>
       <div className={styles.content}>
         {activeTab === 'memos' && <MemoList />}
-        {activeTab === 'trash' && <div className={styles.placeholder}>휴지통 (Phase 10b)</div>}
+        {activeTab === 'trash' && <TrashList />}
         {activeTab === 'settings' && <div className={styles.placeholder}>설정 (Phase 11)</div>}
       </div>
     </div>
@@ -178,6 +178,20 @@ function MemoList(): React.JSX.Element {
       .catch((e) => console.error('openMemo failed:', e))
   }, [])
 
+  const handleDelete = useCallback(async () => {
+    if (!selectedMemoId) return
+    if (!confirm('이 메모를 삭제하시겠습니까?')) return
+    try {
+      const ok = await window.api.deleteMemo(selectedMemoId)
+      if (ok) {
+        setMemos((prev) => prev.filter((m) => m.id !== selectedMemoId))
+        setSelectedMemoId(null)
+      }
+    } catch (e) {
+      console.error('deleteMemo failed:', e)
+    }
+  }, [selectedMemoId])
+
   const handleExport = useCallback(async () => {
     if (!selectedMemoId) return
     try {
@@ -244,6 +258,13 @@ function MemoList(): React.JSX.Element {
         >
           내보내기
         </button>
+        <button
+          className={`${styles.actionBtn} ${styles.deleteBtn}`}
+          onClick={handleDelete}
+          disabled={!selectedMemoId}
+        >
+          삭제
+        </button>
       </div>
 
       {/* Sort controls */}
@@ -290,6 +311,101 @@ function MemoList(): React.JSX.Element {
               className={`${styles.memoItem} ${selectedMemoId === memo.id ? styles.selected : ''}`}
               onClick={() => handleMemoClick(memo.id)}
               onDoubleClick={() => handleMemoDoubleClick(memo.id)}
+            >
+              <span
+                className={styles.colorDot}
+                style={{ backgroundColor: memo.frontmatter.color }}
+              />
+              <span className={styles.memoTitle}>{memo.frontmatter.title}</span>
+              <span className={styles.memoTime}>
+                {formatRelativeTime(memo.frontmatter.modified)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TrashList(): React.JSX.Element {
+  const [trashMemos, setTrashMemos] = useState<MemoData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const load = async (): Promise<void> => {
+      try {
+        const list = await window.api.listTrash()
+        setTrashMemos(list)
+      } catch (e) {
+        console.error('listTrash failed:', e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const handleRestore = useCallback(async () => {
+    if (!selectedId) return
+    try {
+      const ok = await window.api.restoreMemo(selectedId)
+      if (ok) {
+        setTrashMemos((prev) => prev.filter((m) => m.id !== selectedId))
+        setSelectedId(null)
+      }
+    } catch (e) {
+      console.error('restoreMemo failed:', e)
+    }
+  }, [selectedId])
+
+  const handleDeletePermanent = useCallback(async () => {
+    if (!selectedId) return
+    if (!confirm('이 메모를 영구 삭제하시겠습니까? 복구할 수 없습니다.')) return
+    try {
+      const ok = await window.api.deletePermanent(selectedId)
+      if (ok) {
+        setTrashMemos((prev) => prev.filter((m) => m.id !== selectedId))
+        setSelectedId(null)
+      }
+    } catch (e) {
+      console.error('deletePermanent failed:', e)
+    }
+  }, [selectedId])
+
+  if (loading) {
+    return <div className={styles.placeholder}>로딩 중...</div>
+  }
+
+  return (
+    <div className={styles.memoList}>
+      <div className={styles.actionBar}>
+        <button
+          className={styles.actionBtn}
+          onClick={handleRestore}
+          disabled={!selectedId}
+        >
+          복원
+        </button>
+        <button
+          className={`${styles.actionBtn} ${styles.deleteBtn}`}
+          onClick={handleDeletePermanent}
+          disabled={!selectedId}
+        >
+          영구 삭제
+        </button>
+      </div>
+
+      {trashMemos.length === 0 ? (
+        <div className={styles.placeholder}>휴지통이 비어 있습니다.</div>
+      ) : (
+        <div className={styles.memoItems}>
+          {trashMemos.map((memo) => (
+            <div
+              key={memo.id}
+              className={`${styles.memoItem} ${selectedId === memo.id ? styles.selected : ''}`}
+              onClick={() => setSelectedId(memo.id)}
             >
               <span
                 className={styles.colorDot}

@@ -5,7 +5,7 @@ import {
   registerWindowIPC
 } from './lib/window-manager'
 import { createTray, destroyTray } from './lib/tray'
-import { registerMemoFileIPC, readMemo } from './lib/memo-file'
+import { registerMemoFileIPC, readMemo, purgeOldTrash } from './lib/memo-file'
 import { registerManagerIPC } from './lib/manager-window'
 
 // B22: Single instance lock — second launch focuses the first instance
@@ -37,6 +37,9 @@ if (!gotTheLock) {
 
     // Restore state or create new memo
     await restoreOrCreateMemo()
+
+    // Auto-purge old trash (background, non-blocking)
+    purgeOldTrash().catch((e) => console.error('purgeOldTrash failed:', e))
   })
 
   // Keep app running when all windows closed — tray keeps app alive

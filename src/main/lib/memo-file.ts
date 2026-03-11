@@ -1,8 +1,9 @@
-import { readFile, writeFile, rename, readdir, unlink } from 'fs/promises'
+import { readFile, writeFile, rename, readdir, unlink, stat } from 'fs/promises'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import matter from 'gray-matter'
-import { getSaveDir, getSettings } from './store'
+import { getSaveDir, getTrashDir, getSettings } from './store'
+import { closeMemoWindow } from './window-manager'
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import type { MemoFrontmatter, MemoData } from '../../shared/types'
 
@@ -245,6 +246,117 @@ export async function importMemo(): Promise<MemoData | null> {
   }
 }
 
+/** Move memo to trash (B8: mark as pending delete to skip auto-save) */
+export async function deleteMemo(memoId: string): Promise<boolean> {
+  pendingDeleteIds.add(memoId)
+  try {
+    const saveDir = await getSaveDir()
+    const trashDir = await getTrashDir()
+    const src = join(saveDir, `${memoId}.md`)
+    const dest = join(trashDir, `${memoId}.md`)
+    await rename(src, dest)
+    lastSavedContent.delete(memoId)
+    return true
+  } catch (e) {
+    console.error('deleteMemo failed:', e)
+    return false
+  } finally {
+    pendingDeleteIds.delete(memoId)
+  }
+}
+
+/** Permanently delete a memo from trash */
+export async function deletePermanent(memoId: string): Promise<boolean> {
+  try {
+    const trashDir = await getTrashDir()
+    await unlink(join(trashDir, `${memoId}.md`))
+    return true
+  } catch (e) {
+    console.error('deletePermanent failed:', e)
+    return false
+  }
+}
+
+/** Restore a memo from trash */
+export async function restoreMemo(memoId: string): Promise<boolean> {
+  try {
+    const saveDir = await getSaveDir()
+    const trashDir = await getTrashDir()
+    const src = join(trashDir, `${memoId}.md`)
+    const dest = join(saveDir, `${memoId}.md`)
+    await rename(src, dest)
+    return true
+  } catch (e) {
+    console.error('restoreMemo failed:', e)
+    return false
+  }
+}
+
+/** List memos in trash */
+export async function listTrash(): Promise<MemoData[]> {
+  const trashDir = await getTrashDir()
+  try {
+    const files = await readdir(trashDir)
+    const memoFiles = files.filter((f) => f.endsWith('.md'))
+
+    const memos: MemoData[] = []
+    for (const file of memoFiles) {
+      const id = file.replace('.md', '')
+      const filePath = join(trashDir, file)
+      try {
+        const raw = await readFile(filePath, 'utf-8')
+        const parsed = matter(raw, { excerpt: false })
+        const fm = parsed.data as Partial<MemoFrontmatter>
+        const frontmatter: MemoFrontmatter = {
+          title: fm.title || extractTitle(parsed.content),
+          created: fm.created || new Date().toISOString(),
+          modified: fm.modified || new Date().toISOString(),
+          color: fm.color || '#FFF9B1',
+          pinned: fm.pinned ?? false,
+          opacity: fm.opacity ?? 1,
+          fontSize: fm.fontSize ?? 16,
+          ...(fm.alarm ? { alarm: fm.alarm } : {})
+        }
+        memos.push({ id, frontmatter, content: parsed.content })
+      } catch {
+        // Skip unreadable files
+      }
+    }
+    return memos
+  } catch {
+    return []
+  }
+}
+
+/** Auto-purge old trash files (called on app start) */
+export async function purgeOldTrash(): Promise<number> {
+  const settings = await getSettings()
+  const trashDir = await getTrashDir()
+  const maxAge = settings.trashDays * 24 * 60 * 60 * 1000
+  const now = Date.now()
+  let purged = 0
+
+  try {
+    const files = await readdir(trashDir)
+    for (const file of files) {
+      if (!file.endsWith('.md')) continue
+      try {
+        const filePath = join(trashDir, file)
+        const fileStat = await stat(filePath)
+        if (now - fileStat.mtimeMs > maxAge) {
+          await unlink(filePath)
+          purged++
+        }
+      } catch {
+        // Skip files that can't be stat'd or deleted
+      }
+    }
+  } catch {
+    // Trash dir may not exist
+  }
+  return purged
+}
+
 /** Register IPC handlers for memo file operations */
 export function registerMemoFileIPC(): void {
   ipcMain.handle('memo:read', async (_event, memoId: string) => {
@@ -277,5 +389,23 @@ export function registerMemoFileIPC(): void {
 
   ipcMain.handle('memo:import', async () => {
     return importMemo()
+  })
+
+  // Trash operations
+  ipcMain.handle('memo:delete', async (_event, memoId: string) => {
+    closeMemoWindow(memoId)
+    return deleteMemo(memoId)
+  })
+
+  ipcMain.handle('memo:delete-permanent', async (_event, memoId: string) => {
+    return deletePermanent(memoId)
+  })
+
+  ipcMain.handle('memo:restore', async (_event, memoId: string) => {
+    return restoreMemo(memoId)
+  })
+
+  ipcMain.handle('memo:list-trash', async () => {
+    return listTrash()
   })
 }

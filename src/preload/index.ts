@@ -43,6 +43,14 @@ const api = {
     ipcRenderer.invoke('memo:export', memoId, includeFrontmatter),
   importMemo: (): Promise<MemoData | null> =>
     ipcRenderer.invoke('memo:import'),
+  deleteMemo: (memoId: string): Promise<boolean> =>
+    ipcRenderer.invoke('memo:delete', memoId),
+  deletePermanent: (memoId: string): Promise<boolean> =>
+    ipcRenderer.invoke('memo:delete-permanent', memoId),
+  restoreMemo: (memoId: string): Promise<boolean> =>
+    ipcRenderer.invoke('memo:restore', memoId),
+  listTrash: (): Promise<MemoData[]> =>
+    ipcRenderer.invoke('memo:list-trash'),
 
   // Manager window
   openManager: (tab?: string): Promise<void> =>
