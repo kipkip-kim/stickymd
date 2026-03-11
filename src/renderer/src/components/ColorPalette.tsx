@@ -1,14 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { HexColorPicker } from 'react-colorful'
-import { COLOR_PRESETS, DARK_NOTE_BG } from '../constants/colors'
+import { COLOR_PRESETS, DARK_NOTE_BG, isLightColor } from '../constants/colors'
 import styles from './ColorPalette.module.css'
-
-function isLightColor(hex: string): boolean {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return (r * 299 + g * 587 + b * 114) / 1000 > 128
-}
 
 interface ColorPaletteProps {
   currentColor: string

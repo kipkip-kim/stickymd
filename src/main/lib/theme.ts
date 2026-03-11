@@ -14,9 +14,19 @@ export async function getEffectiveTheme(): Promise<EffectiveTheme> {
 
 /** Broadcast theme change to all renderer windows */
 function broadcastTheme(theme: EffectiveTheme): void {
+  const isDark = theme === 'dark'
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) {
       win.webContents.send('theme:changed', theme)
+      // Update titleBarOverlay for windows that use it (e.g. manager)
+      if (win.setTitleBarOverlay) {
+        try {
+          win.setTitleBarOverlay(isDark
+            ? { color: '#1e1e1e', symbolColor: '#e0e0e0' }
+            : { color: '#ffffff', symbolColor: '#333333' }
+          )
+        } catch { /* not all windows have overlay */ }
+      }
     }
   }
 }
