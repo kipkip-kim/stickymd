@@ -31,6 +31,11 @@ export default function EditorToolbar({
     e.preventDefault()
   }, [])
 
+  // Sliders need default mouseDown for drag — only stopPropagation (no preventDefault)
+  const allowSliderDrag = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+  }, [])
+
   const handleBold = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
@@ -170,7 +175,7 @@ export default function EditorToolbar({
           step={1}
           value={fontSize}
           onChange={handleFontSizeChange}
-          onMouseDown={preventBlur}
+          onMouseDown={allowSliderDrag}
           tabIndex={-1}
         />
       </div>
@@ -185,7 +190,7 @@ export default function EditorToolbar({
           step={10}
           value={Math.round(opacity * 100)}
           onChange={handleOpacityChange}
-          onMouseDown={preventBlur}
+          onMouseDown={allowSliderDrag}
           tabIndex={-1}
         />
       </div>

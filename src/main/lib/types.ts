@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoStart: false,
   darkMode: 'system',
   maxOpenWindows: 10,
-  globalHotkey: 'Ctrl+Shift+N',
+  globalHotkey: 'Ctrl+Alt+M',
   deleteConfirm: true,
   immediateDelete: false,
   sortBy: 'modified',

@@ -122,7 +122,12 @@ export default function Titlebar({
           onClick={handleCopy}
           title={copied ? '복사됨!' : '메모 복사'}
         >
-          {copied ? '✓' : '📋'}
+          {copied ? '✓' : (
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5.5" y="5.5" width="9" height="9" rx="1.5" />
+              <path d="M10.5 5.5V3a1.5 1.5 0 00-1.5-1.5H3A1.5 1.5 0 001.5 3v6A1.5 1.5 0 003 10.5h2.5" />
+            </svg>
+          )}
         </button>
         <button
           className={styles.colorBtn}

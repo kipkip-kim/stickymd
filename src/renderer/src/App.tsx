@@ -142,7 +142,8 @@ function App(): React.JSX.Element {
           try {
             await window.api.saveMemo(memoIdRef.current, content, {
               color: colorRef.current,
-              opacity: opacityRef.current
+              opacity: opacityRef.current,
+              fontSize: fontSizeRef.current
             })
           } catch (e) {
             console.error('autoSave failed:', e)
@@ -180,11 +181,14 @@ function App(): React.JSX.Element {
 
   // Copy memo content to clipboard
   const handleCopy = useCallback(async () => {
-    const editor = getEditorRef.current()
-    if (!editor) return
     const markdown = currentContentRef.current
     if (!markdown.trim()) return
-    await window.api.copyToClipboard(markdown)
+    try {
+      await navigator.clipboard.writeText(markdown)
+    } catch {
+      // Fallback to IPC if navigator.clipboard fails
+      await window.api.copyToClipboard(markdown)
+    }
   }, [])
 
   const handleEditorReady = useCallback((getEditor: () => Editor | undefined) => {

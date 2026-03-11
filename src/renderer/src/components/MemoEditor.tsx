@@ -74,10 +74,17 @@ function MilkdownEditor({
     executeSlash
   )
 
-  // Notify parent when editor is ready
+  // Notify parent when editor is ready + auto-focus
   useEffect(() => {
-    if (editorReady && onEditorReady) {
+    if (!editorReady) return
+    if (onEditorReady) {
       onEditorReady(get)
+    }
+    // Auto-focus so user can start typing immediately
+    const editor = get()
+    if (editor) {
+      const view = editor.ctx.get(editorViewCtx)
+      view.focus()
     }
   }, [editorReady, get, onEditorReady])
 
