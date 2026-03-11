@@ -1,10 +1,12 @@
 import { useCallback } from 'react'
 import type { Editor } from '@milkdown/kit/core'
+import { editorViewCtx } from '@milkdown/kit/core'
 import { callCommand } from '@milkdown/kit/utils'
 import {
   toggleStrongCommand,
   wrapInBulletListCommand
 } from '@milkdown/kit/preset/commonmark'
+import { toggleUnderlineCommand } from '../plugins/underline-plugin'
 import styles from './EditorToolbar.module.css'
 
 interface EditorToolbarProps {
@@ -12,17 +14,13 @@ interface EditorToolbarProps {
   memoId: string
   opacity: number
   onOpacityChange: (opacity: number) => void
-  onToggleUnderline: () => void
-  onToggleCheckbox: () => void
 }
 
 export default function EditorToolbar({
   getEditor,
   memoId,
   opacity,
-  onOpacityChange,
-  onToggleUnderline,
-  onToggleCheckbox
+  onOpacityChange
 }: EditorToolbarProps): React.JSX.Element {
   // B4: onMouseDown + preventDefault to prevent editor focus loss
   const preventBlur = useCallback((e: React.MouseEvent) => {
@@ -43,17 +41,50 @@ export default function EditorToolbar({
   const handleUnderline = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
-      onToggleUnderline()
+      const editor = getEditor()
+      if (editor) {
+        editor.action(callCommand(toggleUnderlineCommand.key))
+      }
     },
-    [onToggleUnderline]
+    [getEditor]
   )
 
   const handleCheckbox = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
-      onToggleCheckbox()
+      const editor = getEditor()
+      if (!editor) return
+      const view = editor.ctx.get(editorViewCtx)
+      const { state } = view
+      const { schema, tr, selection } = state
+      const listItemType = schema.nodes['list_item']
+      const bulletListType = schema.nodes['bullet_list']
+      if (!listItemType || !bulletListType) return
+
+      // Check if cursor is in a list_item with checked attribute
+      const $pos = selection.$from
+      for (let depth = $pos.depth; depth > 0; depth--) {
+        const node = $pos.node(depth)
+        if (node.type === listItemType) {
+          // Toggle checked attribute
+          const checked = node.attrs.checked
+          if (checked === null || checked === undefined) {
+            // Not a task item → make it one
+            view.dispatch(tr.setNodeMarkup($pos.before(depth), undefined, { ...node.attrs, checked: false }))
+          } else {
+            // Toggle checked state
+            view.dispatch(tr.setNodeMarkup($pos.before(depth), undefined, { ...node.attrs, checked: !checked }))
+          }
+          return
+        }
+      }
+
+      // Not in a list → create a task list item
+      const listItem = listItemType.create({ checked: false }, schema.nodes['paragraph']!.create())
+      const bulletList = bulletListType.create(null, listItem)
+      view.dispatch(tr.replaceSelectionWith(bulletList))
     },
-    [onToggleCheckbox]
+    [getEditor]
   )
 
   const handleBulletList = useCallback(
@@ -72,6 +103,7 @@ export default function EditorToolbar({
       const val = parseInt(e.target.value, 10) / 100
       onOpacityChange(val)
       window.api.setOpacity(memoId, val)
+        .catch((err) => console.error('setOpacity failed:', err))
     },
     [memoId, onOpacityChange]
   )

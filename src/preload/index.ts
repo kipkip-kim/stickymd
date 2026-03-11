@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { MemoData, MemoFrontmatter } from '../shared/types'
 
 const api = {
   // Window management
@@ -30,14 +31,18 @@ const api = {
     ipcRenderer.invoke('shell:open-external', url),
 
   // Memo file operations
-  readMemo: (memoId: string): Promise<unknown> =>
+  readMemo: (memoId: string): Promise<MemoData | null> =>
     ipcRenderer.invoke('memo:read', memoId),
-  saveMemo: (memoId: string, content: string, frontmatterUpdates?: Record<string, unknown>): Promise<void> =>
+  saveMemo: (memoId: string, content: string, frontmatterUpdates?: Partial<MemoFrontmatter>): Promise<void> =>
     ipcRenderer.invoke('memo:save', memoId, content, frontmatterUpdates),
   deleteEmptyMemo: (memoId: string): Promise<void> =>
     ipcRenderer.invoke('memo:delete-empty', memoId),
-  listMemos: (): Promise<unknown[]> =>
+  listMemos: (): Promise<MemoData[]> =>
     ipcRenderer.invoke('memo:list'),
+
+  // Settings
+  getAutoSaveMs: (): Promise<number> =>
+    ipcRenderer.invoke('settings:get-auto-save-ms'),
 
   // Events from main
   onMemoInit: (callback: (data: { memoId: string; isRolledUp: boolean }) => void): void => {

@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, ipcMain } from 'electron'
+import { BrowserWindow, screen, ipcMain, shell, dialog } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { randomUUID } from 'crypto'
@@ -51,7 +51,6 @@ export async function createMemoWindow(
     // NFR-5: show warning if limit reached
     const existing = BrowserWindow.getAllWindows()[0]
     if (existing) {
-      const { dialog } = await import('electron')
       dialog.showMessageBoxSync(existing, {
         type: 'warning',
         title: 'Sticky Memo',
@@ -112,7 +111,7 @@ export async function createMemoWindow(
   // Block navigation inside app (links open in external browser)
   win.webContents.on('will-navigate', (event, url) => {
     event.preventDefault()
-    import('electron').then(({ shell }) => shell.openExternal(url))
+    shell.openExternal(url).catch((e) => console.error('openExternal failed:', e))
   })
 
   // Send memoId to renderer once loaded
@@ -309,7 +308,6 @@ export function registerWindowIPC(): void {
 
   // Open external URL in default browser
   ipcMain.handle('shell:open-external', async (_event, url: string) => {
-    const { shell } = await import('electron')
     await shell.openExternal(url)
   })
 }

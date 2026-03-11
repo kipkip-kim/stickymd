@@ -21,24 +21,44 @@ export default function Titlebar({
   const [showPalette, setShowPalette] = useState(false)
 
   const handlePin = useCallback(async () => {
-    const newState = await window.api.togglePin(memoId)
-    setIsPinned(newState)
+    try {
+      const newState = await window.api.togglePin(memoId)
+      setIsPinned(newState)
+    } catch (e) {
+      console.error('togglePin failed:', e)
+    }
   }, [memoId])
 
   const handleRollup = useCallback(async () => {
-    await window.api.toggleRollup(memoId)
+    try {
+      await window.api.toggleRollup(memoId)
+    } catch (e) {
+      console.error('toggleRollup failed:', e)
+    }
   }, [memoId])
 
   const handleNew = useCallback(async () => {
-    await window.api.createWindow(memoId)
+    try {
+      await window.api.createWindow(memoId)
+    } catch (e) {
+      console.error('createWindow failed:', e)
+    }
   }, [memoId])
 
   const handleClose = useCallback(async () => {
-    await window.api.closeWindow(memoId)
+    try {
+      await window.api.closeWindow(memoId)
+    } catch (e) {
+      console.error('closeWindow failed:', e)
+    }
   }, [memoId])
 
   const handleDoubleClick = useCallback(async () => {
-    await window.api.toggleRollup(memoId)
+    try {
+      await window.api.toggleRollup(memoId)
+    } catch (e) {
+      console.error('toggleRollup failed:', e)
+    }
   }, [memoId])
 
   return (

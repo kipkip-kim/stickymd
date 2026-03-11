@@ -5,6 +5,7 @@ import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { clipboard } from '@milkdown/kit/plugin/clipboard'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
+import { underlinePlugin } from '../plugins/underline-plugin'
 import { useSlashCommand } from '../hooks/useSlashCommand'
 import { useSlashExecute } from '../hooks/useSlashExecute'
 import SlashDropdown from './SlashDropdown'
@@ -58,6 +59,7 @@ function MilkdownEditor({
           })
       })
       .use(commonmark)
+      .use(underlinePlugin)
       .use(history)
       .use(listener)
       .use(clipboard)

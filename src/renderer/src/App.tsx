@@ -5,19 +5,7 @@ import MemoEditor from './components/MemoEditor'
 import EditorToolbar from './components/EditorToolbar'
 import { DEFAULT_COLOR } from './constants/colors'
 
-const AUTO_SAVE_MS = 2000 // Default 2 seconds
-
-interface MemoData {
-  id: string
-  frontmatter: {
-    title: string
-    color: string
-    opacity: number
-    fontSize: number
-    [key: string]: unknown
-  }
-  content: string
-}
+const DEFAULT_AUTO_SAVE_MS = 2000
 
 function App(): React.JSX.Element {
   const [memoId, setMemoId] = useState<string>('')
@@ -30,7 +18,13 @@ function App(): React.JSX.Element {
   const getEditorRef = useRef<() => Editor | undefined>(() => undefined)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingContentRef = useRef<string | null>(null)
+  const currentContentRef = useRef<string>('')
   const memoIdRef = useRef<string>('')
+  const autoSaveMsRef = useRef<number>(DEFAULT_AUTO_SAVE_MS)
+  const colorRef = useRef(color)
+  const opacityRef = useRef(opacity)
+  colorRef.current = color
+  opacityRef.current = opacity
 
   // Load memo data when memoId is set
   useEffect(() => {
@@ -38,14 +32,21 @@ function App(): React.JSX.Element {
     memoIdRef.current = memoId
 
     const loadMemo = async (): Promise<void> => {
-      const data = (await window.api.readMemo(memoId)) as MemoData | null
-      if (data) {
-        setColor(data.frontmatter.color || DEFAULT_COLOR)
-        setOpacity(data.frontmatter.opacity ?? 1)
-        setTitle(data.frontmatter.title || '새 메모')
-        setInitialContent(data.content)
-      } else {
-        // New memo — no file yet
+      try {
+        const data = await window.api.readMemo(memoId)
+        if (data) {
+          setColor(data.frontmatter.color || DEFAULT_COLOR)
+          setOpacity(data.frontmatter.opacity ?? 1)
+          setTitle(data.frontmatter.title || '새 메모')
+          currentContentRef.current = data.content
+          setInitialContent(data.content)
+        } else {
+          // New memo — no file yet
+          currentContentRef.current = ''
+          setInitialContent('')
+        }
+      } catch (e) {
+        console.error('readMemo failed:', e)
         setInitialContent('')
       }
     }
@@ -58,6 +59,10 @@ function App(): React.JSX.Element {
       setMemoId(data.memoId)
       setIsRolledUp(data.isRolledUp)
     })
+    // D11: Fetch auto-save interval from settings
+    window.api.getAutoSaveMs()
+      .then((ms) => { autoSaveMsRef.current = ms })
+      .catch(() => { /* keep default */ })
     window.api.onRollupChanged((rolledUp) => {
       setIsRolledUp(rolledUp)
     })
@@ -72,7 +77,7 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  // Flush save immediately
+  // Flush save immediately — uses refs to avoid stale closures (BUG-2 fix)
   const flushSave = useCallback(async () => {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current)
@@ -82,19 +87,24 @@ function App(): React.JSX.Element {
     const id = memoIdRef.current
     if (content !== null && id) {
       pendingContentRef.current = null
-      // B20: Empty memo → delete file
-      if (!content.trim()) {
-        await window.api.deleteEmptyMemo(id)
-        return
+      try {
+        // B20: Empty memo → delete file
+        if (!content.trim()) {
+          await window.api.deleteEmptyMemo(id)
+          return
+        }
+        await window.api.saveMemo(id, content, { color: colorRef.current, opacity: opacityRef.current })
+      } catch (e) {
+        console.error('flushSave failed:', e)
       }
-      await window.api.saveMemo(id, content, { color, opacity })
     }
-  }, [color, opacity])
+  }, [])
 
-  // Auto-save with debounce
+  // Auto-save with debounce — uses refs to avoid stale closures (BUG-3 fix)
   const handleMarkdownChange = useCallback(
     (markdown: string) => {
       pendingContentRef.current = markdown
+      currentContentRef.current = markdown
 
       // Extract title from first line
       const firstLine = markdown.split('\n').find((l) => l.trim())
@@ -114,19 +124,27 @@ function App(): React.JSX.Element {
             // Don't save empty memos yet — only delete on close (B20)
             return
           }
-          await window.api.saveMemo(memoIdRef.current, content, { color, opacity })
+          try {
+            await window.api.saveMemo(memoIdRef.current, content, {
+              color: colorRef.current,
+              opacity: opacityRef.current
+            })
+          } catch (e) {
+            console.error('autoSave failed:', e)
+          }
         }
-      }, AUTO_SAVE_MS)
+      }, autoSaveMsRef.current)
     },
-    [color, opacity]
+    []
   )
 
-  // Save color change immediately
+  // Save color change immediately — uses currentContentRef to avoid data loss (BUG-1 fix)
   const handleColorChange = useCallback(
     (newColor: string) => {
       setColor(newColor)
       if (memoIdRef.current) {
-        window.api.saveMemo(memoIdRef.current, pendingContentRef.current || '', { color: newColor })
+        window.api.saveMemo(memoIdRef.current, currentContentRef.current, { color: newColor })
+          .catch((e) => console.error('color save failed:', e))
       }
     },
     []
@@ -147,14 +165,6 @@ function App(): React.JSX.Element {
       if (toolbar && toolbar.contains(active)) return
       setEditorFocused(false)
     }, 100)
-  }, [])
-
-  const handleToggleUnderline = useCallback(() => {
-    // Placeholder for custom ProseMirror underline mark
-  }, [])
-
-  const handleToggleCheckbox = useCallback(() => {
-    // Placeholder for checkbox toggle
   }, [])
 
   // Don't render editor until content is loaded
@@ -201,8 +211,6 @@ function App(): React.JSX.Element {
                 memoId={memoId}
                 opacity={opacity}
                 onOpacityChange={setOpacity}
-                onToggleUnderline={handleToggleUnderline}
-                onToggleCheckbox={handleToggleCheckbox}
               />
             </div>
           )}

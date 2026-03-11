@@ -1,33 +1,11 @@
 import { readFile, writeFile, rename, readdir, unlink } from 'fs/promises'
 import { join } from 'path'
 import matter from 'gray-matter'
-import { getSaveDir } from './store'
+import { getSaveDir, getSettings } from './store'
 import { ipcMain } from 'electron'
+import type { MemoFrontmatter, MemoData } from '../../shared/types'
 
-export interface MemoFrontmatter {
-  title: string
-  created: string
-  modified: string
-  color: string
-  pinned: boolean
-  opacity: number
-  fontSize: number
-  alarm?: {
-    enabled: boolean
-    time: string
-    type: 'once' | 'daily' | 'weekdays' | 'daterange'
-    date?: string
-    weekdays?: number[]
-    startDate?: string
-    endDate?: string
-  }
-}
-
-export interface MemoData {
-  id: string
-  frontmatter: MemoFrontmatter
-  content: string
-}
+export type { MemoFrontmatter, MemoData }
 
 /** Track last saved content per memoId to avoid unnecessary writes (B6) */
 const lastSavedContent = new Map<string, string>()
@@ -206,5 +184,10 @@ export function registerMemoFileIPC(): void {
 
   ipcMain.handle('memo:list', async () => {
     return listMemos()
+  })
+
+  ipcMain.handle('settings:get-auto-save-ms', async () => {
+    const settings = await getSettings()
+    return settings.autoSaveSeconds * 1000
   })
 }
