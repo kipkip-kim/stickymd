@@ -50,6 +50,17 @@ function formatRelativeTime(isoDate: string): string {
 export default function ManagerWindow(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<Tab>(getInitialTab)
 
+  // Prevent Electron default file-drop navigation
+  useEffect(() => {
+    const prevent = (e: DragEvent): void => { e.preventDefault() }
+    document.addEventListener('dragover', prevent)
+    document.addEventListener('drop', prevent)
+    return () => {
+      document.removeEventListener('dragover', prevent)
+      document.removeEventListener('drop', prevent)
+    }
+  }, [])
+
   useEffect(() => {
     window.api.onManagerSwitchTab((tab) => {
       if (tab in TAB_LABELS) {
@@ -87,23 +98,37 @@ export default function ManagerWindow(): React.JSX.Element {
 function MemoList(): React.JSX.Element {
   const [memos, setMemos] = useState<MemoData[]>([])
   const [loading, setLoading] = useState(true)
+  const [dragOver, setDragOver] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortBy>('modified')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [showSortMenu, setShowSortMenu] = useState(false)
-  const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const lastClickedRef = useRef<string | null>(null)
 
   // B7: Track IME composing state for search input
   const isComposingRef = useRef(false)
   const [committedQuery, setCommittedQuery] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Load memos
+  // Track optimistically-added memo IDs (no file yet)
+  const optimisticIdsRef = useRef<Set<string>>(new Set())
+
+  // Load memos + periodic refresh (syncs title changes from memo windows)
   useEffect(() => {
     const load = async (): Promise<void> => {
       try {
         const list = await window.api.listMemos()
-        setMemos(list)
+        // Preserve optimistic entries not yet on disk
+        setMemos((prev) => {
+          const diskIds = new Set(list.map((m) => m.id))
+          const optimistic = prev.filter((m) => optimisticIdsRef.current.has(m.id) && !diskIds.has(m.id))
+          // Remove from optimistic set if now on disk
+          for (const id of optimisticIdsRef.current) {
+            if (diskIds.has(id)) optimisticIdsRef.current.delete(id)
+          }
+          return [...optimistic, ...list]
+        })
       } catch (e) {
         console.error('listMemos failed:', e)
       } finally {
@@ -111,6 +136,8 @@ function MemoList(): React.JSX.Element {
       }
     }
     load()
+    const timer = setInterval(load, 10000)
+    return () => clearInterval(timer)
   }, [])
 
   // Debounced search (B7: only trigger after compositionend)
@@ -170,37 +197,104 @@ function MemoList(): React.JSX.Element {
     return sorted
   }, [memos, committedQuery, sortBy, sortOrder])
 
-  const handleMemoClick = useCallback((memoId: string) => {
-    setSelectedMemoId(memoId)
-  }, [])
+  const handleMemoClick = useCallback((memoId: string, e: React.MouseEvent) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+
+      if (e.shiftKey && lastClickedRef.current) {
+        const ids = filteredMemos.map((m) => m.id)
+        const startIdx = ids.indexOf(lastClickedRef.current)
+        const endIdx = ids.indexOf(memoId)
+        if (startIdx !== -1 && endIdx !== -1) {
+          const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx]
+          for (let i = from; i <= to; i++) {
+            next.add(ids[i])
+          }
+        }
+      } else if (e.ctrlKey || e.metaKey) {
+        if (next.has(memoId)) next.delete(memoId)
+        else next.add(memoId)
+      } else {
+        next.clear()
+        next.add(memoId)
+      }
+
+      return next
+    })
+    lastClickedRef.current = memoId
+  }, [filteredMemos])
 
   const handleMemoDoubleClick = useCallback((memoId: string) => {
     window.api.openMemo(memoId)
       .catch((e) => console.error('openMemo failed:', e))
   }, [])
 
-  const handleDelete = useCallback(async () => {
-    if (!selectedMemoId) return
-    if (!confirm('이 메모를 삭제하시겠습니까?')) return
-    try {
-      const ok = await window.api.deleteMemo(selectedMemoId)
-      if (ok) {
-        setMemos((prev) => prev.filter((m) => m.id !== selectedMemoId))
-        setSelectedMemoId(null)
-      }
-    } catch (e) {
-      console.error('deleteMemo failed:', e)
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === filteredMemos.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredMemos.map((m) => m.id)))
     }
-  }, [selectedMemoId])
+  }, [filteredMemos, selectedIds.size])
+
+  const handleDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    const count = selectedIds.size
+    if (!confirm(`${count}개 메모를 삭제하시겠습니까?`)) return
+    const ids = [...selectedIds]
+    const deleted = new Set<string>()
+    for (const id of ids) {
+      try {
+        const ok = await window.api.deleteMemo(id)
+        if (ok) deleted.add(id)
+      } catch (e) {
+        console.error('deleteMemo failed:', id, e)
+      }
+    }
+    if (deleted.size > 0) {
+      setMemos((prev) => prev.filter((m) => !deleted.has(m.id)))
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const id of deleted) next.delete(id)
+        return next
+      })
+    }
+  }, [selectedIds])
 
   const handleExport = useCallback(async () => {
-    if (!selectedMemoId) return
+    if (selectedIds.size === 0) return
     try {
-      await window.api.exportMemo(selectedMemoId, false)
+      // Export first selected memo
+      const firstId = [...selectedIds][0]
+      await window.api.exportMemo(firstId, false)
     } catch (e) {
       console.error('exportMemo failed:', e)
     }
-  }, [selectedMemoId])
+  }, [selectedIds])
+
+  const handleNewMemo = useCallback(async () => {
+    try {
+      const newId = await window.api.createWindow()
+      if (newId) {
+        optimisticIdsRef.current.add(newId)
+        setMemos((prev) => [{
+          id: newId,
+          frontmatter: {
+            title: '새 메모',
+            created: new Date().toISOString(),
+            modified: new Date().toISOString(),
+            color: '#FFF9B1',
+            pinned: false,
+            opacity: 1,
+            fontSize: 16
+          },
+          content: ''
+        }, ...prev])
+      }
+    } catch (e) {
+      console.error('createWindow failed:', e)
+    }
+  }, [])
 
   const handleImport = useCallback(async () => {
     try {
@@ -210,6 +304,53 @@ function MemoList(): React.JSX.Element {
       }
     } catch (e) {
       console.error('importMemo failed:', e)
+    }
+  }, [])
+
+  const dragCounterRef = useRef(0)
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current++
+    if (e.dataTransfer.types.includes('Files')) setDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) setDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounterRef.current = 0
+    setDragOver(false)
+
+    const files = e.dataTransfer.files
+    if (!files || files.length === 0) return
+
+    const file = files[0]
+    const filePath = window.api.getPathForFile(file)
+    if (!filePath) return
+
+    const ext = filePath.split('.').pop()?.toLowerCase()
+    if (ext !== 'md' && ext !== 'txt') return
+
+    try {
+      const result = await window.api.importMemoFromPath(filePath)
+      if ('error' in result) {
+        if (result.error === 'too-large') {
+          alert('파일이 너무 큽니다 (최대 500KB)')
+        }
+        return
+      }
+      setMemos((prev) => [result, ...prev])
+    } catch (err) {
+      console.error('drop import failed:', err)
     }
   }, [])
 
@@ -235,7 +376,18 @@ function MemoList(): React.JSX.Element {
   }
 
   return (
-    <div className={styles.memoList}>
+    <div
+      className={styles.memoList}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {dragOver && (
+        <div className={styles.dropOverlay}>
+          <span>.md / .txt 파일을 놓아 가져오기</span>
+        </div>
+      )}
       {/* Search bar */}
       <div className={styles.searchBar}>
         <input
@@ -251,18 +403,20 @@ function MemoList(): React.JSX.Element {
 
       {/* Action bar */}
       <div className={styles.actionBar}>
+        <button className={styles.actionBtn} onClick={handleNewMemo}>새 메모</button>
         <button className={styles.actionBtn} onClick={handleImport}>가져오기</button>
         <button
           className={styles.actionBtn}
           onClick={handleExport}
-          disabled={!selectedMemoId}
+          disabled={selectedIds.size !== 1}
+          title={selectedIds.size > 1 ? '1개만 선택해주세요' : undefined}
         >
           내보내기
         </button>
         <button
           className={`${styles.actionBtn} ${styles.deleteBtn}`}
           onClick={handleDelete}
-          disabled={!selectedMemoId}
+          disabled={selectedIds.size === 0}
         >
           삭제
         </button>
@@ -270,7 +424,22 @@ function MemoList(): React.JSX.Element {
 
       {/* Sort controls */}
       <div className={styles.sortBar}>
-        <span className={styles.memoCount}>{filteredMemos.length}개 메모</span>
+        <div className={styles.sortBarLeft}>
+          {filteredMemos.length > 0 && (
+            <label className={styles.selectAllCheckbox}>
+              <input
+                type="checkbox"
+                checked={filteredMemos.length > 0 && selectedIds.size === filteredMemos.length}
+                onChange={handleSelectAll}
+              />
+            </label>
+          )}
+          <span className={styles.memoCount}>
+            {selectedIds.size > 0
+              ? `${selectedIds.size}/${filteredMemos.length}개 선택`
+              : `${filteredMemos.length}개 메모`}
+          </span>
+        </div>
         <div className={styles.sortControls}>
           <div className={styles.sortDropdownWrapper}>
             <button
@@ -309,10 +478,24 @@ function MemoList(): React.JSX.Element {
           {filteredMemos.map((memo) => (
             <div
               key={memo.id}
-              className={`${styles.memoItem} ${selectedMemoId === memo.id ? styles.selected : ''}`}
-              onClick={() => handleMemoClick(memo.id)}
+              className={`${styles.memoItem} ${selectedIds.has(memo.id) ? styles.selected : ''}`}
+              onClick={(e) => handleMemoClick(memo.id, e)}
               onDoubleClick={() => handleMemoDoubleClick(memo.id)}
             >
+              <input
+                type="checkbox"
+                checked={selectedIds.has(memo.id)}
+                onChange={() => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(memo.id)) next.delete(memo.id)
+                    else next.add(memo.id)
+                    return next
+                  })
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className={styles.itemCheckbox}
+              />
               <span
                 className={styles.colorDot}
                 style={{ backgroundColor: memo.frontmatter.color }}

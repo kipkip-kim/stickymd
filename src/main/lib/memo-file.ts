@@ -1,5 +1,5 @@
 import { readFile, writeFile, rename, readdir, unlink, stat } from 'fs/promises'
-import { join } from 'path'
+import { join, extname } from 'path'
 import { randomUUID } from 'crypto'
 import matter from 'gray-matter'
 import { getSaveDir, getTrashDir, getSettings } from './store'
@@ -209,7 +209,9 @@ export async function importMemo(): Promise<MemoData | null> {
   if (!parent) return null
 
   const result = await dialog.showOpenDialog(parent, {
-    filters: [{ name: 'Markdown', extensions: ['md'] }],
+    filters: [
+      { name: 'Markdown / Text', extensions: ['md', 'txt'] }
+    ],
     properties: ['openFile']
   })
 
@@ -217,16 +219,25 @@ export async function importMemo(): Promise<MemoData | null> {
 
   try {
     const filePath = result.filePaths[0]
+    const ext = extname(filePath).toLowerCase()
     const raw = await readFile(filePath, 'utf-8')
-    const parsed = matter(raw, { excerpt: false })
+
+    let content: string
+    let fm: Partial<MemoFrontmatter> = {}
+
+    if (ext === '.txt') {
+      content = raw
+    } else {
+      const parsed = matter(raw, { excerpt: false })
+      content = parsed.content
+      fm = parsed.data as Partial<MemoFrontmatter>
+    }
 
     const newId = randomUUID()
     const saveDir = await getSaveDir()
 
-    // Preserve existing frontmatter or create new
-    const fm = parsed.data as Partial<MemoFrontmatter>
     const frontmatter: MemoFrontmatter = {
-      title: fm.title || extractTitle(parsed.content),
+      title: fm.title || extractTitle(content),
       created: fm.created || new Date().toISOString(),
       modified: new Date().toISOString(),
       color: fm.color || '#FFF9B1',
@@ -236,13 +247,60 @@ export async function importMemo(): Promise<MemoData | null> {
       ...(fm.alarm ? { alarm: fm.alarm } : {})
     }
 
-    const fileContent = matter.stringify(parsed.content, frontmatter)
+    const fileContent = matter.stringify(content, frontmatter)
     await writeFile(join(saveDir, `${newId}.md`), fileContent, 'utf-8')
 
-    return { id: newId, frontmatter, content: parsed.content }
+    return { id: newId, frontmatter, content }
   } catch (e) {
     console.error('importMemo failed:', e)
     return null
+  }
+}
+
+/** Import a memo from a file path (drag-and-drop) */
+export async function importMemoFromPath(filePath: string): Promise<MemoData | { error: string }> {
+  const ext = extname(filePath).toLowerCase()
+  if (ext !== '.md' && ext !== '.txt') {
+    return { error: 'unsupported' }
+  }
+
+  try {
+    const fileStat = await stat(filePath)
+    if (fileStat.size > 500 * 1024) {
+      return { error: 'too-large' }
+    }
+
+    const raw = await readFile(filePath, 'utf-8')
+    let content: string
+    let fm: Partial<MemoFrontmatter> = {}
+
+    if (ext === '.md') {
+      const parsed = matter(raw, { excerpt: false })
+      content = parsed.content
+      fm = parsed.data as Partial<MemoFrontmatter>
+    } else {
+      content = raw
+    }
+
+    const newId = randomUUID()
+    const saveDir = await getSaveDir()
+    const frontmatter: MemoFrontmatter = {
+      title: fm.title || extractTitle(content),
+      created: fm.created || new Date().toISOString(),
+      modified: new Date().toISOString(),
+      color: fm.color || '#FFF9B1',
+      pinned: fm.pinned ?? false,
+      opacity: fm.opacity ?? 1,
+      fontSize: fm.fontSize ?? 16,
+      ...(fm.alarm ? { alarm: fm.alarm } : {})
+    }
+
+    const fileContent = matter.stringify(content, frontmatter)
+    await writeFile(join(saveDir, `${newId}.md`), fileContent, 'utf-8')
+
+    return { id: newId, frontmatter, content }
+  } catch {
+    return { error: 'read-failed' }
   }
 }
 
@@ -357,6 +415,34 @@ export async function purgeOldTrash(): Promise<number> {
   return purged
 }
 
+/** Read an external .md or .txt file — returns body content only */
+export async function readExternalFile(
+  filePath: string
+): Promise<{ content: string } | { error: string }> {
+  const ext = extname(filePath).toLowerCase()
+  if (ext !== '.md' && ext !== '.txt') {
+    return { error: 'unsupported' }
+  }
+
+  try {
+    const fileStat = await stat(filePath)
+    if (fileStat.size > 500 * 1024) {
+      return { error: 'too-large' }
+    }
+
+    const raw = await readFile(filePath, 'utf-8')
+
+    if (ext === '.md') {
+      const parsed = matter(raw, { excerpt: false })
+      return { content: parsed.content }
+    }
+    // .txt
+    return { content: raw }
+  } catch {
+    return { error: 'read-failed' }
+  }
+}
+
 /** Register IPC handlers for memo file operations */
 export function registerMemoFileIPC(): void {
   ipcMain.handle('memo:read', async (_event, memoId: string) => {
@@ -407,5 +493,13 @@ export function registerMemoFileIPC(): void {
 
   ipcMain.handle('memo:list-trash', async () => {
     return listTrash()
+  })
+
+  ipcMain.handle('memo:read-external-file', async (_event, filePath: string) => {
+    return readExternalFile(filePath)
+  })
+
+  ipcMain.handle('memo:import-from-path', async (_event, filePath: string) => {
+    return importMemoFromPath(filePath)
   })
 }

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { MemoData, MemoFrontmatter, AppSettings } from '../shared/types'
 
 const api = {
@@ -51,6 +51,11 @@ const api = {
     ipcRenderer.invoke('memo:restore', memoId),
   listTrash: (): Promise<MemoData[]> =>
     ipcRenderer.invoke('memo:list-trash'),
+  readExternalFile: (filePath: string): Promise<{ content: string } | { error: string }> =>
+    ipcRenderer.invoke('memo:read-external-file', filePath),
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  importMemoFromPath: (filePath: string): Promise<MemoData | { error: string }> =>
+    ipcRenderer.invoke('memo:import-from-path', filePath),
 
   // Manager window
   openManager: (tab?: string): Promise<void> =>

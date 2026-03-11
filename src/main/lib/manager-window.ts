@@ -43,6 +43,7 @@ export async function openManagerWindow(tab?: string): Promise<void> {
   // Remove menu bar (not needed for manager window)
   managerWindow.setMenu(null)
 
+
   // Load renderer with #manager hash
   const hash = tab ? `manager?tab=${tab}` : 'manager'
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

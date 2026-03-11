@@ -59,6 +59,19 @@ function App(): React.JSX.Element {
     loadMemo()
   }, [memoId])
 
+  // Prevent Electron default file-drop navigation
+  useEffect(() => {
+    const preventDrag = (e: DragEvent): void => {
+      e.preventDefault()
+    }
+    document.addEventListener('dragover', preventDrag)
+    document.addEventListener('drop', preventDrag)
+    return () => {
+      document.removeEventListener('dragover', preventDrag)
+      document.removeEventListener('drop', preventDrag)
+    }
+  }, [])
+
   // Init + rollup events
   useEffect(() => {
     window.api.onMemoInit((data) => {
@@ -253,6 +266,7 @@ function App(): React.JSX.Element {
               onBlur={handleEditorBlur}
               onEditorReady={handleEditorReady}
               fontSize={fontSize}
+              currentContent={currentContentRef.current}
             />
           </div>
           {editorFocused && (

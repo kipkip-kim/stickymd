@@ -42,6 +42,10 @@ html, body {
   --note-checkbox-border: rgba(0, 0, 0, 0.4);
   --note-checkbox-checked: rgba(0, 0, 0, 0.6);
   --note-dot-border: rgba(0, 0, 0, 0.2);
+
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+  --scrollbar-track: transparent;
 }
 
 /* Force light text when note background is dark in light mode */
@@ -96,4 +100,27 @@ html, body {
   --note-checkbox-border: rgba(255, 255, 255, 0.4);
   --note-checkbox-checked: rgba(255, 255, 255, 0.6);
   --note-dot-border: rgba(255, 255, 255, 0.2);
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+  --scrollbar-track: transparent;
+}
+
+/* Custom scrollbar — global */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
