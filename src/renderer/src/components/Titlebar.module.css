@@ -96,6 +96,17 @@
   filter: drop-shadow(0 0 4px rgba(255, 179, 71, 0.5));
 }
 
+.btnAlarmActive {
+  opacity: 1;
+  transform: scale(1.2);
+  filter: drop-shadow(0 0 4px rgba(230, 119, 0, 0.5));
+}
+
+[data-theme="dark"] .btnAlarmActive,
+[data-note-dark] .btnAlarmActive {
+  filter: drop-shadow(0 0 4px rgba(255, 179, 71, 0.5));
+}
+
 .closeBtn:hover {
   background: rgba(220, 38, 38, 0.8);
   color: white;

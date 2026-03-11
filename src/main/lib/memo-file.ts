@@ -111,6 +111,11 @@ export async function saveMemo(
     modified: new Date().toISOString()
   }
 
+  // Handle explicit alarm deletion (clearAlarm passes alarm: undefined)
+  if (frontmatterUpdates && 'alarm' in frontmatterUpdates && frontmatterUpdates.alarm === undefined) {
+    delete fm.alarm
+  }
+
   // Compose file with frontmatter
   const fileContent = matter.stringify(content, fm)
 
@@ -501,5 +506,25 @@ export function registerMemoFileIPC(): void {
 
   ipcMain.handle('memo:import-from-path', async (_event, filePath: string) => {
     return importMemoFromPath(filePath)
+  })
+
+  // Alarm operations
+  ipcMain.handle('memo:set-alarm', async (_event, memoId: string, alarm: MemoFrontmatter['alarm']) => {
+    const memo = await readMemo(memoId)
+    if (!memo) return false
+    await saveMemo(memoId, memo.content, { alarm })
+    return true
+  })
+
+  ipcMain.handle('memo:clear-alarm', async (_event, memoId: string) => {
+    const memo = await readMemo(memoId)
+    if (!memo) return false
+    await saveMemo(memoId, memo.content, { alarm: undefined })
+    return true
+  })
+
+  ipcMain.handle('memo:get-alarm', async (_event, memoId: string) => {
+    const memo = await readMemo(memoId)
+    return memo?.frontmatter.alarm ?? null
   })
 }

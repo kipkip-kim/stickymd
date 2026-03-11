@@ -31,9 +31,19 @@ export default function EditorToolbar({
     e.preventDefault()
   }, [])
 
-  // Sliders need default mouseDown for drag — only stopPropagation (no preventDefault)
+  // Sliders need default mouseDown for drag — refocus editor after interaction
   const allowSliderDrag = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
+    // After slider drag ends, refocus the editor to keep toolbar visible
+    const onUp = (): void => {
+      document.removeEventListener('mouseup', onUp)
+      // Refocus editor after a tick
+      setTimeout(() => {
+        const editor = document.querySelector('.milkdown [contenteditable]') as HTMLElement | null
+        editor?.focus()
+      }, 50)
+    }
+    document.addEventListener('mouseup', onUp)
   }, [])
 
   const handleBold = useCallback(

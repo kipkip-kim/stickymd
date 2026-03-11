@@ -8,13 +8,15 @@ interface ColorPaletteProps {
   isDark: boolean
   onColorChange: (color: string) => void
   onClose: () => void
+  excludeRef?: React.RefObject<HTMLElement | null>
 }
 
 export default function ColorPalette({
   currentColor,
   isDark,
   onColorChange,
-  onClose
+  onClose,
+  excludeRef
 }: ColorPaletteProps): React.JSX.Element {
   const [showPicker, setShowPicker] = useState(false)
   const [customColor, setCustomColor] = useState(currentColor)
@@ -23,19 +25,20 @@ export default function ColorPalette({
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent): void => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        onClose()
-      }
+      const target = e.target as Node
+      if (containerRef.current && containerRef.current.contains(target)) return
+      if (excludeRef?.current && excludeRef.current.contains(target)) return
+      onClose()
     }
     // Delay to avoid immediate close from the button click that opened this
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside)
-    }, 0)
+    }, 150)
     return () => {
       clearTimeout(timer)
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [onClose])
+  }, [onClose, excludeRef])
 
   const handlePresetClick = (color: string): void => {
     onColorChange(color)

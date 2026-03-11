@@ -1,5 +1,100 @@
 # StickyMD Changelog
 
+## [2026-03-12] - Phase 13b Alarm System
+
+### Added
+- Per-memo alarm system with 4 trigger types (once, daily, weekdays, daterange)
+- 30-second interval scheduler in main process with dedup logic (firedSet)
+- Titlebar bell icon button (SVG) with active state indicator
+- AlarmPopover component with time + type + date/weekday selectors (enlarged 30%)
+- Alarm summary bar below titlebar showing active alarm info
+- Visual feedback on alarm fire: border glow animation + window flash + temporary top placement
+- Alarm badge (🔔) in manager memo list for alarmed memos
+- IPC APIs: setAlarm, clearAlarm, getAlarm, onAlarmFired
+- Auto-disable for expired alarms (once after fire, daterange after endDate)
+- Frontmatter persistence for alarm data (YAML)
+- Dark mode support for AlarmPopover
+
+### Fixed
+- Toolbar slider drag causing editor blur (toolbarInteractingRef pattern)
+- Window not being restored from minimized state when alarm fires
+
+### Changed
+- System Notification API replaced with in-app visual feedback (border glow + alarm bar)
+  - Reason: better UX, avoids Windows permission issues, more control over appearance
+- Popover width increased from 280px to 364px for better usability
+- Alarm button uses SVG bell icon instead of emoji (better styling)
+- Time input split into hour/minute dropdowns instead of single HH:MM string
+
+### Technical Details
+- **Match Rate**: 93% (Design: 91%, Architecture: 100%, Convention: 97%)
+- **Files Added**: 2 (AlarmPopover.tsx, alarm-scheduler.ts)
+- **Files Modified**: 11 (main, preload, renderer, theme)
+- **Lines Added**: ~600
+- **Issues Found**: 0 blocking, 3 optional enhancements
+- **Duration**: 3 days (2026-03-10 to 2026-03-12)
+- **Commits**: Analysis + Report
+
+### Edge Cases Handled
+- App not running at alarm time → missed alarms (by design)
+- Memo in trash → skip from alarm checks
+- Memo deleted → no error on next scheduler check
+- Multiple alarms at same time → all fire independently
+- Dedup prevents same alarm firing twice in same minute
+- Auto-disable works correctly for once + daterange types
+
+### Known Limitations (Tech Debt)
+- Optional validation for past dates in `once` type (low priority)
+- Optional validation for `daterange` endDate >= startDate
+- `btnAlarmActive` color styling optional (currently opacity only, design suggested gold #e6a817)
+- No snooze feature (can add in Phase 13c)
+- No custom alarm sounds (uses system default notification sound)
+
+---
+
+## [2026-03-12] - Renderer Feature: Drag-and-Drop, Scrollbar, Multi-Select
+
+### Added
+- Drag-and-drop file import to memo editor (.md/.txt with gray-matter parsing)
+- Drag-and-drop file import to manager memo list (preserves frontmatter)
+- Blue drag overlay UI with visual feedback (dragenter/dragleave counter pattern)
+- Custom scrollbar styling (6px width, rounded thumb, theme-aware CSS variables)
+- Memo editor scrollbar fix (flex chain CSS for Milkdown layout)
+- Memo list multi-select with checkboxes (Ctrl+click toggle, Shift+click range)
+- Select-all checkbox with memo count display
+- "New Memo" button in manager window with optimistic UI
+- Periodic polling (10-second interval) with optimistic entry preservation
+- .txt file support in import dialog (raw content without frontmatter)
+- IPC APIs: readExternalFile, importMemoFromPath, getPathForFile (Electron 40)
+- Document-level drag prevention (App.tsx, ManagerWindow.tsx)
+
+### Fixed
+- Memo editor scrollbar clipped/misaligned (flex chain fix)
+- No visual feedback on file drag-over (blue overlay added)
+- Manager window memo list lacked batch operations (multi-select added)
+- New memos removed by polling (optimisticIdsRef tracking)
+
+### Changed
+- MemoEditor component now accepts currentContent prop for overwrite confirmation
+- ManagerWindow now includes periodic polling for external file changes
+- Import dialog now filters both .md and .txt files
+
+### Technical Details
+- **Match Rate**: 97% (38/38 sub-requirements)
+- **Warnings Found**: 1 info-level (non-blocking, W1: multi-select duplication)
+- **Files Modified**: 9 files
+- **Code Changes**: +490/-38 lines
+- **Duration**: 1 day (2026-03-12)
+- **Commit**: 4470f43
+
+### Known Limitations (Tech Debt)
+- Multi-select logic duplicated between MemoList and TrashList (recommend useMultiSelect hook extraction)
+- Single file drops only (no batch import queue)
+- Polling interval hardcoded to 10 seconds (not user-configurable)
+- Error feedback uses alert() instead of toast notifications
+
+---
+
 ## [2026-03-11] - Phase 12 Dark Mode + UI Improvements
 
 ### Added

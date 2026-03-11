@@ -500,6 +500,11 @@ function MemoList(): React.JSX.Element {
                 className={styles.colorDot}
                 style={{ backgroundColor: memo.frontmatter.color }}
               />
+              {memo.frontmatter.alarm?.enabled && (
+                <span className={styles.alarmBadge} title={`알람: ${memo.frontmatter.alarm.time}`}>
+                  🔔
+                </span>
+              )}
               <span className={styles.memoTitle}>{memo.frontmatter.title}</span>
               <span className={styles.memoTime}>
                 {formatRelativeTime(memo.frontmatter.modified)}

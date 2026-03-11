@@ -1,5 +1,7 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import type { AlarmData } from '../../../shared/types'
 import ColorPalette from './ColorPalette'
+import AlarmPopover from './AlarmPopover'
 import styles from './Titlebar.module.css'
 
 interface TitlebarProps {
@@ -10,6 +12,9 @@ interface TitlebarProps {
   isDark: boolean
   onColorChange: (color: string) => void
   onCopy: () => void
+  alarm: AlarmData | null
+  onAlarmSave: (alarm: AlarmData) => void
+  onAlarmClear: () => void
 }
 
 export default function Titlebar({
@@ -19,12 +24,26 @@ export default function Titlebar({
   color,
   isDark,
   onColorChange,
-  onCopy
+  onCopy,
+  alarm,
+  onAlarmSave,
+  onAlarmClear
 }: TitlebarProps): React.JSX.Element {
   const [isPinned, setIsPinned] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
+  const [showAlarm, setShowAlarm] = useState(false)
   const [copied, setCopied] = useState(false)
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const alarmBtnRef = useRef<HTMLButtonElement>(null)
+  const colorBtnRef = useRef<HTMLButtonElement>(null)
+  // Track if button was just clicked to prevent outside-click race
+  const alarmToggleRef = useRef(false)
+  const colorToggleRef = useRef(false)
+
+  // Sync pin state on mount
+  useEffect(() => {
+    window.api.getPin(memoId).then(setIsPinned).catch(() => {})
+  }, [memoId])
 
   const handleCopy = useCallback(() => {
     onCopy()
@@ -84,7 +103,7 @@ export default function Titlebar({
 
   return (
     <div className={styles.titlebar} onDoubleClick={handleDoubleClick}>
-      <div className={styles.leftButtons}>
+      <div className={styles.leftButtons} onDoubleClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()}>
         <button
           className={styles.btn}
           onClick={handleNew}
@@ -115,8 +134,24 @@ export default function Titlebar({
         </button>
       </div>
       <span className={styles.title}>{title || '새 메모'}</span>
-      <div className={styles.buttons}>
-        {/* Phase 13b: alarm button will be added here */}
+      <div className={styles.buttons} onDoubleClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()}>
+        <button
+          ref={alarmBtnRef}
+          className={`${styles.btn} ${alarm?.enabled ? styles.btnAlarmActive : ''}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            // Mark that we're toggling to prevent outside-click race
+            alarmToggleRef.current = true
+            setTimeout(() => { alarmToggleRef.current = false }, 200)
+            setShowAlarm((prev) => !prev)
+          }}
+          title={alarm?.enabled ? `알람: ${alarm.time}` : '알람 설정'}
+        >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill={alarm?.enabled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 1.5a4.5 4.5 0 00-4.5 4.5c0 2.5-1.5 4-1.5 4h12s-1.5-1.5-1.5-4A4.5 4.5 0 008 1.5z" />
+            <path d="M6.5 13a1.5 1.5 0 003 0" />
+          </svg>
+        </button>
         <button
           className={styles.btn}
           onClick={handleCopy}
@@ -130,8 +165,13 @@ export default function Titlebar({
           )}
         </button>
         <button
+          ref={colorBtnRef}
           className={styles.colorBtn}
-          onClick={() => setShowPalette(!showPalette)}
+          onClick={() => {
+            colorToggleRef.current = true
+            setTimeout(() => { colorToggleRef.current = false }, 200)
+            setShowPalette((prev) => !prev)
+          }}
           title="색상 변경"
         >
           <div className={styles.colorDot} style={{ backgroundColor: color }} />
@@ -149,7 +189,24 @@ export default function Titlebar({
           currentColor={color}
           isDark={isDark}
           onColorChange={onColorChange}
-          onClose={() => setShowPalette(false)}
+          onClose={() => {
+            if (colorToggleRef.current) return
+            setShowPalette(false)
+          }}
+          excludeRef={colorBtnRef}
+        />
+      )}
+      {showAlarm && (
+        <AlarmPopover
+          alarm={alarm}
+          onSave={(a) => { onAlarmSave(a); setShowAlarm(false) }}
+          onClear={() => { onAlarmClear(); setShowAlarm(false) }}
+          onClose={() => {
+            // Prevent close if alarm button was just clicked (toggle race)
+            if (alarmToggleRef.current) return
+            setShowAlarm(false)
+          }}
+          excludeRef={alarmBtnRef}
         />
       )}
     </div>

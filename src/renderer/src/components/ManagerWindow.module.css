@@ -321,6 +321,12 @@
   border: 1px solid var(--note-dot-border);
 }
 
+.alarmBadge {
+  font-size: 11px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
 .memoTitle {
   flex: 1;
   font-size: 14px;

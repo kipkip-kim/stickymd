@@ -8,12 +8,16 @@ import { getEffectiveTheme } from './theme'
 
 let managerWindow: BrowserWindow | null = null
 
-/** Open the manager window (or focus if already open) */
-export async function openManagerWindow(tab?: string): Promise<void> {
+/** Toggle the manager window — open if closed, close if open */
+export async function toggleManagerWindow(tab?: string): Promise<void> {
   if (managerWindow && !managerWindow.isDestroyed()) {
-    managerWindow.focus()
     if (tab) {
+      // If requesting a specific tab, switch to it and focus
       managerWindow.webContents.send('manager:switch-tab', tab)
+      managerWindow.focus()
+    } else {
+      // Toggle: close if already open
+      managerWindow.close()
     }
     return
   }
@@ -57,6 +61,19 @@ export async function openManagerWindow(tab?: string): Promise<void> {
   })
 }
 
+/** Open the manager window (or focus if already open) — used by tray */
+export async function openManagerWindow(tab?: string): Promise<void> {
+  if (managerWindow && !managerWindow.isDestroyed()) {
+    managerWindow.focus()
+    if (tab) {
+      managerWindow.webContents.send('manager:switch-tab', tab)
+    }
+    return
+  }
+  // Delegate to toggle which handles creation
+  await toggleManagerWindow(tab)
+}
+
 /** Get the manager window instance */
 export function getManagerWindow(): BrowserWindow | null {
   return managerWindow && !managerWindow.isDestroyed() ? managerWindow : null
@@ -65,7 +82,7 @@ export function getManagerWindow(): BrowserWindow | null {
 /** Register IPC handlers for manager window */
 export function registerManagerIPC(): void {
   ipcMain.handle('manager:open', (_event, tab?: string) => {
-    openManagerWindow(tab)
+    toggleManagerWindow(tab)
   })
 
   ipcMain.handle('manager:open-memo', async (_event, memoId: string) => {

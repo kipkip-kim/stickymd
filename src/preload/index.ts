@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { MemoData, MemoFrontmatter, AppSettings } from '../shared/types'
+import type { MemoData, MemoFrontmatter, AppSettings, AlarmData } from '../shared/types'
 
 const api = {
   // Window management
@@ -81,6 +81,17 @@ const api = {
     ipcRenderer.invoke('settings:backup'),
   restore: (): Promise<boolean> =>
     ipcRenderer.invoke('settings:restore'),
+
+  // Alarm
+  setAlarm: (memoId: string, alarm: AlarmData): Promise<boolean> =>
+    ipcRenderer.invoke('memo:set-alarm', memoId, alarm),
+  clearAlarm: (memoId: string): Promise<boolean> =>
+    ipcRenderer.invoke('memo:clear-alarm', memoId),
+  getAlarm: (memoId: string): Promise<AlarmData | null> =>
+    ipcRenderer.invoke('memo:get-alarm', memoId),
+  onAlarmFired: (callback: () => void): void => {
+    ipcRenderer.on('memo:alarm-fired', () => callback())
+  },
 
   // Clipboard
   copyToClipboard: (text: string): Promise<void> =>

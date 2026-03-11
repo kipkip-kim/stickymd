@@ -10,6 +10,7 @@ import { registerManagerIPC } from './lib/manager-window'
 import { registerSettingsIPC } from './lib/settings-ipc'
 import { registerThemeIPC } from './lib/theme'
 import { registerGlobalHotkey, unregisterGlobalHotkey } from './lib/hotkey'
+import { startAlarmScheduler, stopAlarmScheduler } from './lib/alarm-scheduler'
 
 // B22: Single instance lock — second launch focuses the first instance
 const gotTheLock = app.requestSingleInstanceLock()
@@ -46,6 +47,9 @@ if (!gotTheLock) {
     // Restore state or create new memo
     await restoreOrCreateMemo()
 
+    // Start alarm scheduler
+    startAlarmScheduler()
+
     // Auto-purge old trash (background, non-blocking)
     purgeOldTrash().catch((e) => console.error('purgeOldTrash failed:', e))
   })
@@ -56,6 +60,7 @@ if (!gotTheLock) {
   })
 
   app.on('before-quit', () => {
+    stopAlarmScheduler()
     unregisterGlobalHotkey()
     destroyTray()
   })

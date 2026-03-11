@@ -1,0 +1,194 @@
+.popover {
+  position: absolute;
+  top: 36px;
+  right: 60px;
+  width: 364px;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  box-shadow: var(--shadow-dropdown);
+  z-index: 200;
+  padding: 16px;
+  -webkit-app-region: no-drag;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.header {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.timeSelect {
+  padding: 6px 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-input, #fff);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.timeSelect:focus {
+  border-color: var(--border-focus);
+}
+
+.timeSeparator {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.typeSelect {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-input, #fff);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.typeSelect:focus {
+  border-color: var(--border-focus);
+}
+
+.dateInput {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg-input, #fff);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.dateInput:focus {
+  border-color: var(--border-focus);
+}
+
+.weekdayRow {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.weekdayBtn {
+  width: 40px;
+  height: 34px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: var(--bg-input, #fff);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.weekdayBtn:hover {
+  border-color: var(--border-focus);
+}
+
+.weekdayBtnActive {
+  background: var(--border-focus, #3b82f6);
+  color: #fff;
+  border-color: var(--border-focus, #3b82f6);
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 8px;
+}
+
+.btnDelete {
+  padding: 6px 14px;
+  border: 1px solid #e0b0b0;
+  border-radius: 4px;
+  background: none;
+  color: #d32f2f;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .btnDelete {
+  color: #ef5350;
+  border-color: #5a2020;
+}
+
+.btnDelete:hover {
+  background: #fef0f0;
+}
+
+[data-theme="dark"] .btnDelete:hover {
+  background: #3a1515;
+}
+
+.btnGroup {
+  display: flex;
+  gap: 8px;
+}
+
+.btnCancel {
+  padding: 6px 14px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btnCancel:hover {
+  background: var(--bg-secondary);
+}
+
+.btnSave {
+  padding: 6px 16px;
+  border: 1px solid var(--border-focus, #3b82f6);
+  border-radius: 4px;
+  background: var(--border-focus, #3b82f6);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btnSave:hover {
+  opacity: 0.9;
+}
+
+.dateRangeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dateRangeLabel {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}

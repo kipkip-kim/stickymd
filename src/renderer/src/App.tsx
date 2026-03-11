@@ -1,11 +1,32 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Editor } from '@milkdown/kit/core'
+import type { AlarmData } from '../../shared/types'
 import Titlebar from './components/Titlebar'
 import MemoEditor from './components/MemoEditor'
 import EditorToolbar from './components/EditorToolbar'
 import { DEFAULT_COLOR, getEffectiveColor, isLightColor } from './constants/colors'
 
 const DEFAULT_AUTO_SAVE_MS = 2000
+
+const WEEKDAY_SHORT = ['일', '월', '화', '수', '목', '금', '토']
+
+function formatAlarmSummary(alarm: AlarmData): string {
+  const time = alarm.time
+  switch (alarm.type) {
+    case 'once':
+      return `${alarm.date ?? ''} ${time}`
+    case 'daily':
+      return `매일 ${time}`
+    case 'weekdays': {
+      const days = (alarm.weekdays ?? []).sort().map((d) => WEEKDAY_SHORT[d]).join(', ')
+      return `${days} ${time}`
+    }
+    case 'daterange':
+      return `${alarm.startDate ?? ''} ~ ${alarm.endDate ?? ''} ${time}`
+    default:
+      return time
+  }
+}
 
 function App(): React.JSX.Element {
   const [memoId, setMemoId] = useState<string>('')
@@ -18,6 +39,8 @@ function App(): React.JSX.Element {
   const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
   const [fontFamily, setFontFamily] = useState('')
   const [fontSize, setFontSize] = useState(16)
+  const [alarm, setAlarm] = useState<AlarmData | null>(null)
+  const [alarmFiring, setAlarmFiring] = useState(false)
   const getEditorRef = useRef<() => Editor | undefined>(() => undefined)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingContentRef = useRef<string | null>(null)
@@ -43,6 +66,7 @@ function App(): React.JSX.Element {
           setColor(data.frontmatter.color || DEFAULT_COLOR)
           setOpacity(data.frontmatter.opacity ?? 1)
           setFontSize(data.frontmatter.fontSize || 16)
+          setAlarm(data.frontmatter.alarm ?? null)
           setTitle(data.frontmatter.title || '새 메모')
           currentContentRef.current = data.content
           setInitialContent(data.content)
@@ -92,6 +116,19 @@ function App(): React.JSX.Element {
     window.api.onFlushSave(() => {
       flushSave()
     })
+    // Listen for alarm-fired event — visual feedback + sync alarm state
+    window.api.onAlarmFired(() => {
+      setAlarmFiring(true)
+      setTimeout(() => setAlarmFiring(false), 5000)
+      // Sync alarm state after auto-disable (e.g. once type)
+      setTimeout(async () => {
+        if (memoIdRef.current) {
+          const updated = await window.api.getAlarm(memoIdRef.current)
+          setAlarm(updated)
+        }
+      }, 1000)
+    })
+
     // Sync isDark React state when main.tsx updates data-theme attribute
     const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
@@ -102,6 +139,7 @@ function App(): React.JSX.Element {
       window.api.removeAllListeners('memo:init')
       window.api.removeAllListeners('memo:rollup-changed')
       window.api.removeAllListeners('memo:flush-save')
+      window.api.removeAllListeners('memo:alarm-fired')
     }
   }, [])
 
@@ -204,6 +242,21 @@ function App(): React.JSX.Element {
     }
   }, [])
 
+  // Alarm handlers
+  const handleAlarmSave = useCallback(async (newAlarm: AlarmData) => {
+    setAlarm(newAlarm)
+    if (memoIdRef.current) {
+      await window.api.setAlarm(memoIdRef.current, newAlarm)
+    }
+  }, [])
+
+  const handleAlarmClear = useCallback(async () => {
+    setAlarm(null)
+    if (memoIdRef.current) {
+      await window.api.clearAlarm(memoIdRef.current)
+    }
+  }, [])
+
   const handleEditorReady = useCallback((getEditor: () => Editor | undefined) => {
     getEditorRef.current = getEditor
   }, [])
@@ -212,13 +265,34 @@ function App(): React.JSX.Element {
     setEditorFocused(true)
   }, [])
 
+  const toolbarInteractingRef = useRef(false)
+
+  const handleToolbarInteractStart = useCallback(() => {
+    toolbarInteractingRef.current = true
+    // Catch mouseup anywhere (slider drag may leave toolbar bounds)
+    const onUp = (): void => {
+      toolbarInteractingRef.current = false
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mouseup', onUp)
+  }, [])
+
+  const handleToolbarInteractEnd = useCallback(() => {
+    toolbarInteractingRef.current = false
+  }, [])
+
   const handleEditorBlur = useCallback(() => {
     setTimeout(() => {
-      const active = document.activeElement
+      // If toolbar is being interacted with (slider drag etc.), don't hide
+      if (toolbarInteractingRef.current) return
       const toolbar = document.querySelector('[data-toolbar]')
-      if (toolbar && toolbar.contains(active)) return
+      if (toolbar) {
+        const active = document.activeElement
+        if (toolbar.contains(active)) return
+        if (toolbar.matches(':hover')) return
+      }
       setEditorFocused(false)
-    }, 100)
+    }, 150)
   }, [])
 
   // Compute effective background color for dark mode
@@ -230,7 +304,7 @@ function App(): React.JSX.Element {
   if (initialContent === null && memoId) {
     return (
       <div data-note-dark={forceDarkNote || undefined} style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: effectiveColor, fontFamily: fontFamily || undefined }}>
-        <Titlebar memoId={memoId} isRolledUp={isRolledUp} color={color} isDark={isDark} onColorChange={handleColorChange} onCopy={handleCopy} title={title} />
+        <Titlebar memoId={memoId} isRolledUp={isRolledUp} color={color} isDark={isDark} onColorChange={handleColorChange} onCopy={handleCopy} title={title} alarm={alarm} onAlarmSave={handleAlarmSave} onAlarmClear={handleAlarmClear} />
       </div>
     )
   }
@@ -244,7 +318,9 @@ function App(): React.JSX.Element {
         height: '100vh',
         overflow: 'hidden',
         backgroundColor: effectiveColor,
-        fontFamily: fontFamily || undefined
+        fontFamily: fontFamily || undefined,
+        boxShadow: alarmFiring ? 'inset 0 0 12px rgba(255, 100, 0, 0.6), 0 0 20px rgba(255, 100, 0, 0.4)' : undefined,
+        animation: alarmFiring ? 'alarmGlow 1s ease-in-out infinite alternate' : undefined
       }}
     >
       <Titlebar
@@ -255,7 +331,34 @@ function App(): React.JSX.Element {
         onColorChange={handleColorChange}
         onCopy={handleCopy}
         title={title}
+        alarm={alarm}
+        onAlarmSave={handleAlarmSave}
+        onAlarmClear={handleAlarmClear}
       />
+      {!isRolledUp && alarm?.enabled && (
+        <div
+          style={{
+            padding: '3px 10px',
+            fontSize: 14,
+            color: alarmFiring ? '#fff' : 'var(--note-text-secondary)',
+            background: alarmFiring ? 'rgba(255, 100, 0, 0.85)' : undefined,
+            borderBottom: '1px solid var(--note-border)',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            cursor: 'default',
+            userSelect: 'none',
+            transition: 'background 0.3s, color 0.3s'
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: alarmFiring ? 1 : 0.6 }}>
+            <path d="M8 1.5a4.5 4.5 0 00-4.5 4.5c0 2.5-1.5 4-1.5 4h12s-1.5-1.5-1.5-4A4.5 4.5 0 008 1.5z" />
+            <path d="M6.5 13a1.5 1.5 0 003 0" />
+          </svg>
+          {alarmFiring ? '알람!' : formatAlarmSummary(alarm)}
+        </div>
+      )}
       {!isRolledUp && (
         <>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -270,7 +373,10 @@ function App(): React.JSX.Element {
             />
           </div>
           {editorFocused && (
-            <div data-toolbar>
+            <div
+              data-toolbar
+              onMouseDown={handleToolbarInteractStart}
+            >
               <EditorToolbar
                 getEditor={getEditorRef.current}
                 memoId={memoId}
