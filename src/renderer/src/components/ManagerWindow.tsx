@@ -332,7 +332,8 @@ function MemoList(): React.JSX.Element {
 function TrashList(): React.JSX.Element {
   const [trashMemos, setTrashMemos] = useState<MemoData[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const lastClickedRef = useRef<string | null>(null)
 
   useEffect(() => {
     const load = async (): Promise<void> => {
@@ -348,54 +349,114 @@ function TrashList(): React.JSX.Element {
     load()
   }, [])
 
-  const handleRestore = useCallback(async () => {
-    if (!selectedId) return
-    try {
-      const ok = await window.api.restoreMemo(selectedId)
-      if (ok) {
-        setTrashMemos((prev) => prev.filter((m) => m.id !== selectedId))
-        setSelectedId(null)
+  const handleItemClick = useCallback((memoId: string, e: React.MouseEvent) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+
+      if (e.shiftKey && lastClickedRef.current) {
+        // Shift+click: range select
+        const ids = trashMemos.map((m) => m.id)
+        const startIdx = ids.indexOf(lastClickedRef.current)
+        const endIdx = ids.indexOf(memoId)
+        if (startIdx !== -1 && endIdx !== -1) {
+          const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx]
+          for (let i = from; i <= to; i++) {
+            next.add(ids[i])
+          }
+        }
+      } else if (e.ctrlKey || e.metaKey) {
+        // Ctrl+click: toggle single
+        if (next.has(memoId)) {
+          next.delete(memoId)
+        } else {
+          next.add(memoId)
+        }
+      } else {
+        // Normal click: select only this
+        next.clear()
+        next.add(memoId)
       }
+
+      return next
+    })
+    lastClickedRef.current = memoId
+  }, [trashMemos])
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === trashMemos.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(trashMemos.map((m) => m.id)))
+    }
+  }, [trashMemos, selectedIds.size])
+
+  const handleRestore = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    const ids = [...selectedIds]
+    try {
+      for (const id of ids) {
+        await window.api.restoreMemo(id)
+      }
+      setTrashMemos((prev) => prev.filter((m) => !selectedIds.has(m.id)))
+      setSelectedIds(new Set())
     } catch (e) {
       console.error('restoreMemo failed:', e)
     }
-  }, [selectedId])
+  }, [selectedIds])
 
   const handleDeletePermanent = useCallback(async () => {
-    if (!selectedId) return
-    if (!confirm('이 메모를 영구 삭제하시겠습니까? 복구할 수 없습니다.')) return
+    if (selectedIds.size === 0) return
+    const count = selectedIds.size
+    if (!confirm(`${count}개 메모를 영구 삭제하시겠습니까? 복구할 수 없습니다.`)) return
+    const ids = [...selectedIds]
     try {
-      const ok = await window.api.deletePermanent(selectedId)
-      if (ok) {
-        setTrashMemos((prev) => prev.filter((m) => m.id !== selectedId))
-        setSelectedId(null)
+      for (const id of ids) {
+        await window.api.deletePermanent(id)
       }
+      setTrashMemos((prev) => prev.filter((m) => !selectedIds.has(m.id)))
+      setSelectedIds(new Set())
     } catch (e) {
       console.error('deletePermanent failed:', e)
     }
-  }, [selectedId])
+  }, [selectedIds])
 
   if (loading) {
     return <div className={styles.placeholder}>로딩 중...</div>
   }
 
+  const allSelected = trashMemos.length > 0 && selectedIds.size === trashMemos.length
+
   return (
     <div className={styles.memoList}>
-      <div className={styles.actionBar}>
-        <button
-          className={styles.actionBtn}
-          onClick={handleRestore}
-          disabled={!selectedId}
-        >
-          복원
-        </button>
-        <button
-          className={`${styles.actionBtn} ${styles.deleteBtn}`}
-          onClick={handleDeletePermanent}
-          disabled={!selectedId}
-        >
-          영구 삭제
-        </button>
+      <div className={styles.trashActionBar}>
+        <div className={styles.trashActionLeft}>
+          {trashMemos.length > 0 && (
+            <label className={styles.selectAllCheckbox}>
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={handleSelectAll}
+              />
+              <span>전체 선택 ({selectedIds.size}/{trashMemos.length})</span>
+            </label>
+          )}
+        </div>
+        <div className={styles.trashActionRight}>
+          <button
+            className={styles.actionBtn}
+            onClick={handleRestore}
+            disabled={selectedIds.size === 0}
+          >
+            복원
+          </button>
+          <button
+            className={`${styles.actionBtn} ${styles.deleteBtn}`}
+            onClick={handleDeletePermanent}
+            disabled={selectedIds.size === 0}
+          >
+            영구 삭제
+          </button>
+        </div>
       </div>
 
       {trashMemos.length === 0 ? (
@@ -405,9 +466,23 @@ function TrashList(): React.JSX.Element {
           {trashMemos.map((memo) => (
             <div
               key={memo.id}
-              className={`${styles.memoItem} ${selectedId === memo.id ? styles.selected : ''}`}
-              onClick={() => setSelectedId(memo.id)}
+              className={`${styles.memoItem} ${selectedIds.has(memo.id) ? styles.selected : ''}`}
+              onClick={(e) => handleItemClick(memo.id, e)}
             >
+              <input
+                type="checkbox"
+                checked={selectedIds.has(memo.id)}
+                onChange={() => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(memo.id)) next.delete(memo.id)
+                    else next.add(memo.id)
+                    return next
+                  })
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className={styles.itemCheckbox}
+              />
               <span
                 className={styles.colorDot}
                 style={{ backgroundColor: memo.frontmatter.color }}
