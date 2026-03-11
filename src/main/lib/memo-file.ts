@@ -1,8 +1,9 @@
 import { readFile, writeFile, rename, readdir, unlink } from 'fs/promises'
 import { join } from 'path'
+import { randomUUID } from 'crypto'
 import matter from 'gray-matter'
 import { getSaveDir, getSettings } from './store'
-import { ipcMain } from 'electron'
+import { ipcMain, dialog, BrowserWindow } from 'electron'
 import type { MemoFrontmatter, MemoData } from '../../shared/types'
 
 export type { MemoFrontmatter, MemoData }
@@ -165,6 +166,68 @@ export async function listMemos(): Promise<MemoData[]> {
   }
 }
 
+/** Export a memo to user-chosen location */
+export async function exportMemo(memoId: string, includeFrontmatter: boolean): Promise<boolean> {
+  const memo = await readMemo(memoId)
+  if (!memo) return false
+
+  const defaultName = `${memo.frontmatter.title.replace(/[<>:"/\\|?*]/g, '_')}.md`
+  const win = BrowserWindow.getFocusedWindow()
+  const result = await dialog.showSaveDialog(win ?? BrowserWindow.getAllWindows()[0], {
+    defaultPath: defaultName,
+    filters: [{ name: 'Markdown', extensions: ['md'] }]
+  })
+
+  if (result.canceled || !result.filePath) return false
+
+  let content: string
+  if (includeFrontmatter) {
+    const raw = await readFile(join(await getSaveDir(), `${memoId}.md`), 'utf-8')
+    content = raw
+  } else {
+    content = memo.content
+  }
+
+  await writeFile(result.filePath, content, 'utf-8')
+  return true
+}
+
+/** Import a memo from user-chosen file */
+export async function importMemo(): Promise<MemoData | null> {
+  const win = BrowserWindow.getFocusedWindow()
+  const result = await dialog.showOpenDialog(win ?? BrowserWindow.getAllWindows()[0], {
+    filters: [{ name: 'Markdown', extensions: ['md'] }],
+    properties: ['openFile']
+  })
+
+  if (result.canceled || result.filePaths.length === 0) return null
+
+  const filePath = result.filePaths[0]
+  const raw = await readFile(filePath, 'utf-8')
+  const parsed = matter(raw, { excerpt: false })
+
+  const newId = randomUUID()
+  const saveDir = await getSaveDir()
+
+  // Preserve existing frontmatter or create new
+  const fm = parsed.data as Partial<MemoFrontmatter>
+  const frontmatter: MemoFrontmatter = {
+    title: fm.title || extractTitle(parsed.content),
+    created: fm.created || new Date().toISOString(),
+    modified: new Date().toISOString(),
+    color: fm.color || '#FFF9B1',
+    pinned: fm.pinned ?? false,
+    opacity: fm.opacity ?? 1,
+    fontSize: fm.fontSize ?? 16,
+    ...(fm.alarm ? { alarm: fm.alarm } : {})
+  }
+
+  const fileContent = matter.stringify(parsed.content, frontmatter)
+  await writeFile(join(saveDir, `${newId}.md`), fileContent, 'utf-8')
+
+  return { id: newId, frontmatter, content: parsed.content }
+}
+
 /** Register IPC handlers for memo file operations */
 export function registerMemoFileIPC(): void {
   ipcMain.handle('memo:read', async (_event, memoId: string) => {
@@ -189,5 +252,13 @@ export function registerMemoFileIPC(): void {
   ipcMain.handle('settings:get-auto-save-ms', async () => {
     const settings = await getSettings()
     return settings.autoSaveSeconds * 1000
+  })
+
+  ipcMain.handle('memo:export', async (_event, memoId: string, includeFrontmatter: boolean) => {
+    return exportMemo(memoId, includeFrontmatter)
+  })
+
+  ipcMain.handle('memo:import', async () => {
+    return importMemo()
   })
 }

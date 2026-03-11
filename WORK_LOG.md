@@ -53,6 +53,18 @@
 - 앱 시작 시 state.json → openMemoIds 순차 복원
 - 파일 존재 검증, maxOpenWindows 제한 (B14), 실패 시 새 메모 생성
 
+### Phase 10a: 관리자 창 기본
+- `manager-window.ts`: BrowserWindow 600×500, hash 기반 라우팅 (`#manager`, `#manager?tab=settings`)
+- `main.tsx`: `#manager` hash 감지 → ManagerWindow 렌더링, 기본 → App 렌더링
+- `ManagerWindow.tsx`: 상단 3탭 (메모 목록/휴지통/설정), 탭 전환 IPC (`manager:switch-tab`)
+- 메모 목록: 색상 dot + 제목 + 상대시간(수정일), 더블클릭→메모 창 열기
+- 검색: debounce 300ms + B7 IME composing 처리 (compositionstart/end)
+- 정렬: 수정일/생성일/제목 × 오름차순/내림차순 토글
+- 내보내기: `dialog.showSaveDialog`, frontmatter 포함/제외
+- 가져오기: `dialog.showOpenDialog`, UUID 파일명 복사, 기존 frontmatter 유지
+- 트레이 메뉴 연결: "관리자 창"→`openManagerWindow()`, "설정"→`openManagerWindow('settings')`
+- Preload API: `openManager`, `openMemo`, `exportMemo`, `importMemo`, `onManagerSwitchTab`
+
 ### 기술부채 정리 + 버그 수정 (Phase 9→10a 사이)
 - **공유 타입 통일**: `src/shared/types.ts` 생성 (MemoFrontmatter, AlarmData, MemoData). preload `Promise<unknown>` → 정확한 타입. App.tsx 로컬 MemoData 제거
 - **비동기 에러 처리**: App.tsx 4개소 + Titlebar.tsx 5개소 + EditorToolbar 1개소 try/catch 래핑
@@ -73,7 +85,7 @@
 
 | Phase | 내용 | 핵심 포인트 |
 |-------|------|-------------|
-| 10a | 관리자 창 | BrowserWindow 600×500, 탭 UI(목록/휴지통/설정), 검색, 정렬, 내보내기/가져오기 |
+| ~~10a~~ | ~~관리자 창~~ | ~~BrowserWindow 600×500, 탭 UI(목록/휴지통/설정), 검색, 정렬, 내보내기/가져오기~~ → **완료** |
 | 10b | 휴지통 + IPC 동기화 | .trash/ 이동/복원, 삭제 팝업, 30일 자동 비우기, 양방향 IPC 전파 |
 | 11 | 설정 탭 + 백업/복원 | 폰트, 자동저장 주기, 휴지통 기간, 저장경로, 자동시작, 백업 zip |
 | 12 | 다크 모드 | CSS 변수, nativeTheme, 노트 색상 다크 2세트, Milkdown 다크 스타일 |
@@ -92,8 +104,8 @@
 |---|------|------|------|
 | ~~D1~~ | ~~`App.tsx` handleToggleUnderline~~ | ~~빈 함수~~ | **해결됨** — ProseMirror 커스텀 마크 + remark 플러그인 구현 |
 | ~~D2~~ | ~~`App.tsx` handleToggleCheckbox~~ | ~~빈 함수~~ | **해결됨** — list_item checked 토글 구현 |
-| D3 | `tray.ts` 관리자 창 메뉴 | 클릭해도 아무 일 없음. Phase 10a에서 연결 |
-| D4 | `tray.ts` 설정 메뉴 | 클릭해도 아무 일 없음. Phase 10a/11에서 연결 |
+| ~~D3~~ | ~~`tray.ts` 관리자 창 메뉴~~ | ~~클릭해도 아무 일 없음~~ | **해결됨** — `openManagerWindow()` 연결 |
+| ~~D4~~ | ~~`tray.ts` 설정 메뉴~~ | ~~클릭해도 아무 일 없음~~ | **해결됨** — `openManagerWindow('settings')` 연결 |
 
 ### 중간 (타입 안전성 / 에러 처리)
 
@@ -162,6 +174,12 @@
 - **롤업 상태에서 getBounds().height를 저장하면 32px이 영속됨.** 반드시 prevHeight를 별도 추적
 - **setMinimumSize()를 롤업 전후로 동적 전환하지 않으면 크래시.** minHeight:150과 height:32가 충돌
 
+### 개발 환경 프로세스 관리
+- **`npm run dev` 실행 후 반드시 정상 종료할 것.** 트레이 "종료"로 닫거나, `cmd.exe /c "taskkill /F /IM electron.exe"`로 확실히 죽여야 함. bash에서 `taskkill /F`는 `/F`가 경로로 파싱되어 안 먹힘
+- **background로 `electron-vite dev`를 여러 번 실행하지 말 것.** 첫 Electron이 Windows mutex(single instance lock)를 잡고, 이후 실행은 전부 `gotTheLock: false`로 즉시 종료됨
+- **좀비 Electron 프로세스가 남으면 앱이 실행 불가.** `requestSingleInstanceLock()`이 false 반환하여 즉시 quit. 반드시 `cmd.exe /c "taskkill /F /IM electron.exe"`로 정리 후 재실행
+- **디버깅 시 console 출력이 안 보이는 환경이면** 파일 로깅(`appendFileSync`)으로 우회. 하지만 디버그 코드는 반드시 커밋 전 제거
+
 ### 빌드/배포
 - **`npm run build` 전에 반드시 `npm run typecheck` 통과 확인.** vite 빌드는 타입 에러를 무시할 수 있음
 - **electron-builder의 postinstall이 native deps를 리빌드함.** 패키지 추가 후 에러 나면 `npm run postinstall` 재실행
@@ -197,7 +215,7 @@
 
 | ID | 내용 | 적용 Phase |
 |----|------|------------|
-| B7 | 검색 input IME 처리 | 10a |
+| ~~B7~~ | ~~검색 input IME 처리~~ | ~~10a~~ → **적용됨** |
 | B9 | 알람 HH:mm 비교 + lastTriggeredDate | 13b |
 | B10 | 시스템 절전 후 밀린 알람 | 13b |
 | B12 | frontmatter YAML 특수문자 라운드트립 | 7 (테스트 미실행) |
@@ -235,7 +253,8 @@ C:\Projects\Memo\
     │       ├── store.ts             # state/settings 스토어
     │       ├── window-manager.ts    # 멀티윈도우 관리 + IPC
     │       ├── tray.ts              # 시스템 트레이
-    │       └── memo-file.ts         # .md 파일 CRUD + frontmatter
+    │       ├── manager-window.ts   # 관리자 창 생성 + IPC
+    │       └── memo-file.ts         # .md 파일 CRUD + frontmatter + 내보내기/가져오기
     ├── preload/
     │   ├── index.ts                 # contextBridge API (공유 타입 사용)
     │   └── index.d.ts               # 타입 선언
@@ -255,7 +274,8 @@ C:\Projects\Memo\
             │   ├── ColorPalette.tsx / .module.css
             │   ├── MemoEditor.tsx / .css
             │   ├── EditorToolbar.tsx / .module.css
-            │   └── SlashDropdown.tsx / .module.css
+            │   ├── SlashDropdown.tsx / .module.css
+            │   └── ManagerWindow.tsx / .module.css
             └── hooks/
                 ├── useSlashCommand.ts
                 └── useSlashExecute.ts

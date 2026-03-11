@@ -6,6 +6,7 @@ import {
 } from './lib/window-manager'
 import { createTray, destroyTray } from './lib/tray'
 import { registerMemoFileIPC, readMemo } from './lib/memo-file'
+import { registerManagerIPC } from './lib/manager-window'
 
 // B22: Single instance lock — second launch focuses the first instance
 const gotTheLock = app.requestSingleInstanceLock()
@@ -29,6 +30,7 @@ if (!gotTheLock) {
     // Register IPC handlers
     registerWindowIPC()
     registerMemoFileIPC()
+    registerManagerIPC()
 
     // Create system tray
     createTray()

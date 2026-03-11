@@ -1,6 +1,7 @@
 import { Tray, Menu, nativeImage, app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { createMemoWindow, getOpenMemoIds } from './window-manager'
+import { openManagerWindow } from './manager-window'
 import { stateStore } from './store'
 
 let tray: Tray | null = null
@@ -47,14 +48,14 @@ function updateTrayMenu(): void {
     {
       label: '관리자 창',
       click: () => {
-        // Phase 10 will implement the admin window
+        openManagerWindow()
       }
     },
     { type: 'separator' },
     {
       label: '설정',
       click: () => {
-        // Phase 10/11 will open admin window at settings tab
+        openManagerWindow('settings')
       }
     },
     { type: 'separator' },

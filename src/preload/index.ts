@@ -39,6 +39,21 @@ const api = {
     ipcRenderer.invoke('memo:delete-empty', memoId),
   listMemos: (): Promise<MemoData[]> =>
     ipcRenderer.invoke('memo:list'),
+  exportMemo: (memoId: string, includeFrontmatter: boolean): Promise<boolean> =>
+    ipcRenderer.invoke('memo:export', memoId, includeFrontmatter),
+  importMemo: (): Promise<MemoData | null> =>
+    ipcRenderer.invoke('memo:import'),
+
+  // Manager window
+  openManager: (tab?: string): Promise<void> =>
+    ipcRenderer.invoke('manager:open', tab),
+  openMemo: (memoId: string): Promise<void> =>
+    ipcRenderer.invoke('manager:open-memo', memoId),
+
+  // Manager events
+  onManagerSwitchTab: (callback: (tab: string) => void): void => {
+    ipcRenderer.on('manager:switch-tab', (_event, tab) => callback(tab))
+  },
 
   // Settings
   getAutoSaveMs: (): Promise<number> =>
