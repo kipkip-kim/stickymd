@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SlashCommand } from '../constants/slash-commands'
 import styles from './SlashDropdown.module.css'
 
@@ -19,21 +19,31 @@ export default function SlashDropdown({
 }: SlashDropdownProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const selectedRef = useRef<HTMLButtonElement>(null)
+  const [fixedTop, setFixedTop] = useState<number | null>(null)
 
   // Scroll selected item into view
   useEffect(() => {
     selectedRef.current?.scrollIntoView({ block: 'nearest' })
   }, [selectedIndex])
 
-  // Adjust position to prevent overflow off-screen
-  const adjustedPosition = { ...position }
-  if (containerRef.current) {
-    const rect = containerRef.current.getBoundingClientRect()
-    const viewportHeight = window.innerHeight
-    if (rect.bottom > viewportHeight) {
-      // Show above the cursor instead
-      adjustedPosition.top = position.top - rect.height - 24
+  // Decide direction once after first render
+  useEffect(() => {
+    if (containerRef.current && fixedTop === null) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
+      if (rect.bottom > viewportHeight) {
+        setFixedTop(position.top - rect.height - 24)
+      } else {
+        setFixedTop(position.top)
+      }
     }
+  }, [position.top, fixedTop])
+
+  // Reset when position changes (new slash opened)
+  const posTopRef = useRef(position.top)
+  if (posTopRef.current !== position.top) {
+    posTopRef.current = position.top
+    setFixedTop(null)
   }
 
   const width = Math.min(maxWidth, 240)
@@ -43,8 +53,8 @@ export default function SlashDropdown({
       ref={containerRef}
       className={styles.dropdown}
       style={{
-        top: adjustedPosition.top,
-        left: adjustedPosition.left,
+        top: fixedTop ?? position.top,
+        left: position.left,
         width
       }}
     >

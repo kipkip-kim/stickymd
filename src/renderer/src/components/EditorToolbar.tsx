@@ -79,10 +79,19 @@ export default function EditorToolbar({
         }
       }
 
-      // Not in a list → create a task list item
-      const listItem = listItemType.create({ checked: false }, schema.nodes['paragraph']!.create())
-      const bulletList = bulletListType.create(null, listItem)
-      view.dispatch(tr.replaceSelectionWith(bulletList))
+      // Not in a list → wrap in bullet list first, then set checked attribute
+      editor.action(callCommand(wrapInBulletListCommand.key))
+      // After wrapping, find the list_item and set checked
+      const newView = editor.ctx.get(editorViewCtx)
+      const newState = newView.state
+      const $newPos = newState.selection.$from
+      for (let d = $newPos.depth; d > 0; d--) {
+        const n = $newPos.node(d)
+        if (n.type === listItemType) {
+          newView.dispatch(newState.tr.setNodeMarkup($newPos.before(d), undefined, { ...n.attrs, checked: false }))
+          break
+        }
+      }
     },
     [getEditor]
   )

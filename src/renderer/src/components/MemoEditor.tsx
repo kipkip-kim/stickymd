@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
+import { gfm } from '@milkdown/kit/preset/gfm'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { clipboard } from '@milkdown/kit/plugin/clipboard'
@@ -59,6 +60,7 @@ function MilkdownEditor({
           })
       })
       .use(commonmark)
+      .use(gfm)
       .use(underlinePlugin)
       .use(history)
       .use(listener)
@@ -91,6 +93,8 @@ function MilkdownEditor({
     const handleClick = (e: Event): void => {
       const mouseEvent = e as MouseEvent
       const target = mouseEvent.target as HTMLElement
+
+      // Handle link clicks
       const anchor = target.closest('a')
       if (anchor) {
         mouseEvent.preventDefault()
@@ -98,6 +102,26 @@ function MilkdownEditor({
         const href = anchor.getAttribute('href')
         if (href) {
           window.api.openExternal(href)
+        }
+        return
+      }
+
+      // Handle task list checkbox clicks
+      const li = target.closest('li[data-checked]') as HTMLElement | null
+      if (li && mouseEvent.offsetX < 24) {
+        mouseEvent.preventDefault()
+        const pos = view.posAtDOM(li, 0)
+        const resolved = view.state.doc.resolve(pos)
+        // Walk up to find the list_item node
+        for (let d = resolved.depth; d >= 0; d--) {
+          const node = resolved.node(d)
+          if (node.type.name === 'list_item' && node.attrs.checked !== undefined) {
+            const before = resolved.before(d)
+            view.dispatch(
+              view.state.tr.setNodeMarkup(before, undefined, { ...node.attrs, checked: !node.attrs.checked })
+            )
+            break
+          }
         }
       }
     }

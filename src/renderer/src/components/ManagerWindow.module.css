@@ -7,6 +7,19 @@
   color: var(--text-primary);
 }
 
+/* Custom titlebar for frameless window */
+.managerTitlebar {
+  -webkit-app-region: drag;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  user-select: none;
+}
+
 /* Tabs */
 .tabs {
   display: flex;

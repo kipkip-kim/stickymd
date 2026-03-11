@@ -63,6 +63,7 @@ export default function ManagerWindow(): React.JSX.Element {
 
   return (
     <div className={styles.container}>
+      <div className={styles.managerTitlebar}>Sticky Memo</div>
       <div className={styles.tabs}>
         {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
           <button

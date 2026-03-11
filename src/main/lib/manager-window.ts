@@ -4,11 +4,12 @@ import { is } from '@electron-toolkit/utils'
 import { createMemoWindow, getWindowByMemoId } from './window-manager'
 import { readMemo } from './memo-file'
 import { stateStore } from './store'
+import { getEffectiveTheme } from './theme'
 
 let managerWindow: BrowserWindow | null = null
 
 /** Open the manager window (or focus if already open) */
-export function openManagerWindow(tab?: string): void {
+export async function openManagerWindow(tab?: string): Promise<void> {
   if (managerWindow && !managerWindow.isDestroyed()) {
     managerWindow.focus()
     if (tab) {
@@ -17,12 +18,20 @@ export function openManagerWindow(tab?: string): void {
     return
   }
 
+  const theme = await getEffectiveTheme()
+  const isDark = theme === 'dark'
+
   managerWindow = new BrowserWindow({
     width: 600,
     height: 500,
     minWidth: 400,
     minHeight: 350,
     title: 'Sticky Memo — 관리자',
+    backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: isDark
+      ? { color: '#1e1e1e', symbolColor: '#e0e0e0', height: 32 }
+      : { color: '#ffffff', symbolColor: '#333333', height: 32 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -30,6 +39,9 @@ export function openManagerWindow(tab?: string): void {
       contextIsolation: true
     }
   })
+
+  // Remove menu bar (not needed for manager window)
+  managerWindow.setMenu(null)
 
   // Load renderer with #manager hash
   const hash = tab ? `manager?tab=${tab}` : 'manager'

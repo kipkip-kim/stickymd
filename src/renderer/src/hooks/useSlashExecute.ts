@@ -43,16 +43,20 @@ export function useSlashExecute(getEditor: () => Editor | undefined) {
           editor.action(callCommand(wrapInOrderedListCommand.key))
           break
         case 'todo': {
-          // Insert a task list item
-          const { schema, tr } = view.state
-          const listItemType = schema.nodes['list_item']
-          const bulletListType = schema.nodes['bullet_list']
-          if (listItemType && bulletListType) {
-            // Create a checked list item
-            const listItem = listItemType.create({ checked: false }, schema.nodes['paragraph']!.create())
-            const bulletList = bulletListType.create(null, listItem)
-            const newTr = tr.replaceSelectionWith(bulletList)
-            view.dispatch(newTr)
+          // Wrap in bullet list, then set checked attribute for task list
+          editor.action(callCommand(wrapInBulletListCommand.key))
+          const newView = editor.ctx.get(editorViewCtx)
+          const newState = newView.state
+          const listItemType = newState.schema.nodes['list_item']
+          if (listItemType) {
+            const $pos = newState.selection.$from
+            for (let d = $pos.depth; d > 0; d--) {
+              const n = $pos.node(d)
+              if (n.type === listItemType) {
+                newView.dispatch(newState.tr.setNodeMarkup($pos.before(d), undefined, { ...n.attrs, checked: false }))
+                break
+              }
+            }
           }
           break
         }

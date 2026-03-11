@@ -98,25 +98,36 @@ export function useSlashCommand(
       const query = textBefore.slice(lastSlashIndex + 1)
       const commands = filterCommands(query)
 
-      // Get cursor position for dropdown
-      const coords = view.coordsAtPos(editorState.selection.head)
-      const editorRect = dom.getBoundingClientRect()
-
       // Store the absolute position of the slash in the doc
       const resolvedPos = editorState.doc.resolve($head.pos)
-      slashPosRef.current = resolvedPos.pos - query.length - 1
+      const newSlashPos = resolvedPos.pos - query.length - 1
 
-      setState({
-        isOpen: true,
-        query,
-        commands,
-        selectedIndex: 0,
-        position: {
-          top: coords.bottom - editorRect.top + 4,
-          left: coords.left - editorRect.left
-        },
-        maxWidth: editorRect.width
-      })
+      // Only calculate position when first opening (slash just typed)
+      if (slashPosRef.current === null) {
+        slashPosRef.current = newSlashPos
+        const coords = view.coordsAtPos(editorState.selection.head)
+        const editorRect = dom.getBoundingClientRect()
+
+        setState({
+          isOpen: true,
+          query,
+          commands,
+          selectedIndex: 0,
+          position: {
+            top: coords.bottom - editorRect.top + 4,
+            left: coords.left - editorRect.left
+          },
+          maxWidth: editorRect.width
+        })
+      } else {
+        // Already open — only update query and commands, keep position fixed
+        setState((s) => ({
+          ...s,
+          query,
+          commands,
+          selectedIndex: 0
+        }))
+      }
     }
 
     const onInput = (): void => {
