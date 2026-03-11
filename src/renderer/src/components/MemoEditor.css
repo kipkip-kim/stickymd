@@ -1,0 +1,165 @@
+/* Global styles for Milkdown/ProseMirror editor */
+/* Cannot use CSS Modules because ProseMirror injects its own class names */
+
+.milkdown {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.milkdown .editor {
+  flex: 1;
+  outline: none;
+  padding: 4px 8px;
+  overflow-y: auto;
+  font-family: inherit;
+  line-height: 1.6;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* ProseMirror defaults */
+.ProseMirror {
+  outline: none;
+  min-height: 100%;
+}
+
+.ProseMirror p {
+  margin: 0 0 4px 0;
+}
+
+.ProseMirror h1 {
+  font-size: 1.5em;
+  margin: 8px 0 4px 0;
+  font-weight: 700;
+}
+
+.ProseMirror h2 {
+  font-size: 1.3em;
+  margin: 6px 0 4px 0;
+  font-weight: 600;
+}
+
+.ProseMirror h3 {
+  font-size: 1.1em;
+  margin: 4px 0 4px 0;
+  font-weight: 600;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  margin: 2px 0;
+  padding-left: 20px;
+}
+
+.ProseMirror li {
+  margin: 1px 0;
+}
+
+/* Checkbox (task list) */
+.ProseMirror li[data-checked] {
+  list-style: none;
+  position: relative;
+  margin-left: -20px;
+  padding-left: 20px;
+}
+
+.ProseMirror li[data-checked]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.ProseMirror li[data-checked="true"]::before {
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(0, 0, 0, 0.6);
+}
+
+.ProseMirror li[data-checked="true"]::after {
+  content: '✓';
+  position: absolute;
+  left: 2px;
+  top: 1px;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.ProseMirror li[data-checked="true"] > * {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+/* Blockquote */
+.ProseMirror blockquote {
+  border-left: 3px solid rgba(0, 0, 0, 0.2);
+  margin: 4px 0;
+  padding: 2px 12px;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+/* Code */
+.ProseMirror code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'D2Coding', monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror pre {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 8px 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 4px 0;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Horizontal rule */
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  margin: 8px 0;
+}
+
+/* Links */
+.ProseMirror a {
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ProseMirror a:hover {
+  color: #1d4ed8;
+}
+
+/* Bold/Italic */
+.ProseMirror strong {
+  font-weight: 700;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+/* Selection */
+.ProseMirror ::selection {
+  background: rgba(37, 99, 235, 0.2);
+}
+
+/* Placeholder for empty editor */
+.ProseMirror.ProseMirror-empty::before {
+  content: '';
+}

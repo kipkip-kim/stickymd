@@ -1,0 +1,72 @@
+.container {
+  position: absolute;
+  top: 32px;
+  left: 4px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.presets {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swatch:hover {
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+.swatchSelected {
+  border-color: rgba(0, 0, 0, 0.6);
+}
+
+.swatchInner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.customBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px dashed rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  background: none;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0, 0, 0, 0.4);
+  padding: 0;
+}
+
+.customBtn:hover {
+  border-color: rgba(0, 0, 0, 0.5);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.pickerWrapper {
+  padding-top: 4px;
+}
