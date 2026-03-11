@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import ColorPalette from './ColorPalette'
 import styles from './Titlebar.module.css'
 
@@ -9,6 +9,7 @@ interface TitlebarProps {
   color: string
   isDark: boolean
   onColorChange: (color: string) => void
+  onCopy: () => void
 }
 
 export default function Titlebar({
@@ -17,10 +18,20 @@ export default function Titlebar({
   title,
   color,
   isDark,
-  onColorChange
+  onColorChange,
+  onCopy
 }: TitlebarProps): React.JSX.Element {
   const [isPinned, setIsPinned] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleCopy = useCallback(() => {
+    onCopy()
+    setCopied(true)
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+    copyTimerRef.current = setTimeout(() => setCopied(false), 1500)
+  }, [onCopy])
 
   const handlePin = useCallback(async () => {
     try {
@@ -106,6 +117,13 @@ export default function Titlebar({
       <span className={styles.title}>{title || '새 메모'}</span>
       <div className={styles.buttons}>
         {/* Phase 13b: alarm button will be added here */}
+        <button
+          className={styles.btn}
+          onClick={handleCopy}
+          title={copied ? '복사됨!' : '메모 복사'}
+        >
+          {copied ? '✓' : '📋'}
+        </button>
         <button
           className={styles.colorBtn}
           onClick={() => setShowPalette(!showPalette)}

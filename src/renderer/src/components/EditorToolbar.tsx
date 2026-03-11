@@ -14,13 +14,17 @@ interface EditorToolbarProps {
   memoId: string
   opacity: number
   onOpacityChange: (opacity: number) => void
+  fontSize: number
+  onFontSizeChange: (size: number) => void
 }
 
 export default function EditorToolbar({
   getEditor,
   memoId,
   opacity,
-  onOpacityChange
+  onOpacityChange,
+  fontSize,
+  onFontSizeChange
 }: EditorToolbarProps): React.JSX.Element {
   // B4: onMouseDown + preventDefault to prevent editor focus loss
   const preventBlur = useCallback((e: React.MouseEvent) => {
@@ -107,6 +111,13 @@ export default function EditorToolbar({
     [getEditor]
   )
 
+  const handleFontSizeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      onFontSizeChange(parseInt(e.target.value, 10))
+    },
+    [onFontSizeChange]
+  )
+
   const handleOpacityChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = parseInt(e.target.value, 10) / 100
@@ -148,6 +159,21 @@ export default function EditorToolbar({
       >
         •
       </button>
+      <div className={styles.separator} />
+      <div className={styles.sliderGroup}>
+        <span className={styles.sliderLabel}>가 {fontSize}</span>
+        <input
+          type="range"
+          className={styles.slider}
+          min={10}
+          max={28}
+          step={1}
+          value={fontSize}
+          onChange={handleFontSizeChange}
+          onMouseDown={preventBlur}
+          tabIndex={-1}
+        />
+      </div>
       <div className={styles.separator} />
       <div className={styles.sliderGroup}>
         <span className={styles.sliderLabel}>{Math.round(opacity * 100)}%</span>

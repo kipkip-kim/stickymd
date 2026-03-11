@@ -1,10 +1,11 @@
-import { ipcMain, dialog, app, BrowserWindow } from 'electron'
+import { ipcMain, dialog, app, BrowserWindow, clipboard } from 'electron'
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { exec } from 'child_process'
 import { settingsStore, stateStore, getSaveDir } from './store'
 import { isPathAccessible } from './json-store'
 import { closeAllMemoWindows } from './window-manager'
+import { updateGlobalHotkey } from './hotkey'
 import { TRASH_DIR_NAME } from './constants'
 import type { AppSettings } from '../../shared/types'
 import type { AppState } from './types'
@@ -251,6 +252,14 @@ export function registerSettingsIPC(): void {
       onDarkModeSettingChanged().catch((e) => console.error('theme broadcast failed:', e))
     }
 
+    // Update global hotkey if changed
+    if (updates.globalHotkey !== undefined) {
+      const ok = updateGlobalHotkey(updates.globalHotkey)
+      if (!ok) {
+        return { success: false, error: `핫키 등록 실패: ${updates.globalHotkey}` }
+      }
+    }
+
     return { success: true, settings: updated }
   })
 
@@ -289,5 +298,10 @@ export function registerSettingsIPC(): void {
         }
       )
     })
+  })
+
+  // Clipboard
+  ipcMain.handle('clipboard:write', (_event, text: string) => {
+    clipboard.writeText(text)
   })
 }

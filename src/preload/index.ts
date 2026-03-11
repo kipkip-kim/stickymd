@@ -77,6 +77,10 @@ const api = {
   restore: (): Promise<boolean> =>
     ipcRenderer.invoke('settings:restore'),
 
+  // Clipboard
+  copyToClipboard: (text: string): Promise<void> =>
+    ipcRenderer.invoke('clipboard:write', text),
+
   // Fonts
   listFonts: (): Promise<string[]> =>
     ipcRenderer.invoke('fonts:list'),

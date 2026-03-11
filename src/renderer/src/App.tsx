@@ -17,6 +17,7 @@ function App(): React.JSX.Element {
   const [title, setTitle] = useState('새 메모')
   const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
   const [fontFamily, setFontFamily] = useState('')
+  const [fontSize, setFontSize] = useState(16)
   const getEditorRef = useRef<() => Editor | undefined>(() => undefined)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingContentRef = useRef<string | null>(null)
@@ -25,8 +26,10 @@ function App(): React.JSX.Element {
   const autoSaveMsRef = useRef<number>(DEFAULT_AUTO_SAVE_MS)
   const colorRef = useRef(color)
   const opacityRef = useRef(opacity)
+  const fontSizeRef = useRef(fontSize)
   colorRef.current = color
   opacityRef.current = opacity
+  fontSizeRef.current = fontSize
 
   // Load memo data when memoId is set
   useEffect(() => {
@@ -39,6 +42,7 @@ function App(): React.JSX.Element {
         if (data) {
           setColor(data.frontmatter.color || DEFAULT_COLOR)
           setOpacity(data.frontmatter.opacity ?? 1)
+          setFontSize(data.frontmatter.fontSize || 16)
           setTitle(data.frontmatter.title || '새 메모')
           currentContentRef.current = data.content
           setInitialContent(data.content)
@@ -104,7 +108,7 @@ function App(): React.JSX.Element {
           await window.api.deleteEmptyMemo(id)
           return
         }
-        await window.api.saveMemo(id, content, { color: colorRef.current, opacity: opacityRef.current })
+        await window.api.saveMemo(id, content, { color: colorRef.current, opacity: opacityRef.current, fontSize: fontSizeRef.current })
       } catch (e) {
         console.error('flushSave failed:', e)
       }
@@ -154,12 +158,34 @@ function App(): React.JSX.Element {
     (newColor: string) => {
       setColor(newColor)
       if (memoIdRef.current) {
-        window.api.saveMemo(memoIdRef.current, currentContentRef.current, { color: newColor, opacity: opacityRef.current })
+        window.api.saveMemo(memoIdRef.current, currentContentRef.current, { color: newColor, opacity: opacityRef.current, fontSize: fontSizeRef.current })
           .catch((e) => console.error('color save failed:', e))
       }
     },
     []
   )
+
+  // Save font size immediately
+  const handleFontSizeChange = useCallback(
+    (newSize: number) => {
+      setFontSize(newSize)
+      if (memoIdRef.current) {
+        window.api.saveMemo(memoIdRef.current, currentContentRef.current, {
+          color: colorRef.current, opacity: opacityRef.current, fontSize: newSize
+        }).catch((e) => console.error('fontSize save failed:', e))
+      }
+    },
+    []
+  )
+
+  // Copy memo content to clipboard
+  const handleCopy = useCallback(async () => {
+    const editor = getEditorRef.current()
+    if (!editor) return
+    const markdown = currentContentRef.current
+    if (!markdown.trim()) return
+    await window.api.copyToClipboard(markdown)
+  }, [])
 
   const handleEditorReady = useCallback((getEditor: () => Editor | undefined) => {
     getEditorRef.current = getEditor
@@ -187,7 +213,7 @@ function App(): React.JSX.Element {
   if (initialContent === null && memoId) {
     return (
       <div data-note-dark={forceDarkNote || undefined} style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: effectiveColor, fontFamily: fontFamily || undefined }}>
-        <Titlebar memoId={memoId} isRolledUp={isRolledUp} color={color} isDark={isDark} onColorChange={handleColorChange} title={title} />
+        <Titlebar memoId={memoId} isRolledUp={isRolledUp} color={color} isDark={isDark} onColorChange={handleColorChange} onCopy={handleCopy} title={title} />
       </div>
     )
   }
@@ -210,6 +236,7 @@ function App(): React.JSX.Element {
         color={color}
         isDark={isDark}
         onColorChange={handleColorChange}
+        onCopy={handleCopy}
         title={title}
       />
       {!isRolledUp && (
@@ -221,6 +248,7 @@ function App(): React.JSX.Element {
               onFocus={handleEditorFocus}
               onBlur={handleEditorBlur}
               onEditorReady={handleEditorReady}
+              fontSize={fontSize}
             />
           </div>
           {editorFocused && (
@@ -230,6 +258,8 @@ function App(): React.JSX.Element {
                 memoId={memoId}
                 opacity={opacity}
                 onOpacityChange={setOpacity}
+                fontSize={fontSize}
+                onFontSizeChange={handleFontSizeChange}
               />
             </div>
           )}

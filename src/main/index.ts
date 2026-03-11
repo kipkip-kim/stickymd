@@ -9,6 +9,7 @@ import { registerMemoFileIPC, readMemo, purgeOldTrash } from './lib/memo-file'
 import { registerManagerIPC } from './lib/manager-window'
 import { registerSettingsIPC } from './lib/settings-ipc'
 import { registerThemeIPC } from './lib/theme'
+import { registerGlobalHotkey, unregisterGlobalHotkey } from './lib/hotkey'
 
 // B22: Single instance lock — second launch focuses the first instance
 const gotTheLock = app.requestSingleInstanceLock()
@@ -36,6 +37,9 @@ if (!gotTheLock) {
     registerSettingsIPC()
     registerThemeIPC()
 
+    // Register global hotkey
+    registerGlobalHotkey()
+
     // Create system tray
     createTray()
 
@@ -52,6 +56,7 @@ if (!gotTheLock) {
   })
 
   app.on('before-quit', () => {
+    unregisterGlobalHotkey()
     destroyTray()
   })
 }
