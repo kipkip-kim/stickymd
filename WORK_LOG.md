@@ -53,6 +53,20 @@
 - 앱 시작 시 state.json → openMemoIds 순차 복원
 - 파일 존재 검증, maxOpenWindows 제한 (B14), 실패 시 새 메모 생성
 
+### 기술부채 정리 + 버그 수정 (Phase 9→10a 사이)
+- **공유 타입 통일**: `src/shared/types.ts` 생성 (MemoFrontmatter, AlarmData, MemoData). preload `Promise<unknown>` → 정확한 타입. App.tsx 로컬 MemoData 제거
+- **비동기 에러 처리**: App.tsx 4개소 + Titlebar.tsx 5개소 + EditorToolbar 1개소 try/catch 래핑
+- **자동 저장 설정 반영**: `settings:get-auto-save-ms` IPC 추가, 하드코딩 2000ms → 설정값
+- **밑줄 마크 구현**: `plugins/underline-plugin.ts` — ProseMirror 커스텀 마크 + remark `<u>` 라운드트립 + Ctrl+U 키맵
+- **체크박스 토글 구현**: EditorToolbar에서 ProseMirror API로 list_item checked 토글
+- **정적 import 전환**: window-manager.ts의 `import('electron').then()` → 정적 import (`shell`, `dialog`)
+- **크리티컬 버그 4건 수정**:
+  - BUG-1: `handleColorChange`가 `pendingContentRef.current || ''`로 빈 문자열 저장 → 메모 내용 삭제. `currentContentRef` 도입으로 해결
+  - BUG-2: `onFlushSave` 리스너가 마운트 시점 `flushSave`만 캡처 → 창 닫기 시 stale color/opacity. ref 기반으로 전환
+  - BUG-3: debounce setTimeout이 생성 시점 color/opacity 캡처 → 색상 변경 덮어씌움. ref 기반으로 전환
+  - BUG-4: `setOpacity` IPC `.catch()` 누락
+- **커밋**: `36ddebc fix: resolve tech debt and critical bugs before Phase 10a`
+
 ---
 
 ## 2. 앞으로 할 작업
@@ -128,6 +142,10 @@
 - **Milkdown을 React controlled 패턴으로 쓰지 말 것.** `useState`로 에디터 내용 관리 시도 금지. 반드시 명령형 API만 (getMarkdown/replaceAll)
 - **preload에서 `unknown` 타입으로 퉁치지 말 것.** main↔renderer 간 타입 불일치는 런타임 버그로 직결됨. 공유 타입 파일 하나로 통일
 - **IPC 채널 이름 중복 주의.** `memo:` / `window:` / `shell:` 네임스페이스 규칙 유지
+
+### React + 비동기
+- **비동기 콜백에서 React state를 클로저로 캡처하지 말 것.** `useCallback([color, opacity])` 안의 setTimeout/IPC는 생성 시점 값을 캡처. 반드시 **ref** (`colorRef.current`)로 최신 값 읽기. BUG-1~3의 근본 원인
+- **`pendingContentRef`와 `currentContentRef`를 구분할 것.** pending은 "아직 안 저장된 변경", current는 "현재 에디터 내용". 색상 변경 등 content 필요 시 current 사용
 
 ### 에디터
 - **한글 IME 조합 중 이벤트 처리 빼먹지 말 것.** compositionstart/compositionend 플래그 없이 keydown/input 처리하면 한글 입력 깨짐
