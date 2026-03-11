@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { MemoData, MemoFrontmatter } from '../shared/types'
+import type { MemoData, MemoFrontmatter, AppSettings } from '../shared/types'
 
 const api = {
   // Window management
@@ -66,6 +66,16 @@ const api = {
   // Settings
   getAutoSaveMs: (): Promise<number> =>
     ipcRenderer.invoke('settings:get-auto-save-ms'),
+  getSettings: (): Promise<AppSettings> =>
+    ipcRenderer.invoke('settings:get'),
+  updateSettings: (updates: Partial<AppSettings>): Promise<{ success: boolean; error?: string; settings?: AppSettings }> =>
+    ipcRenderer.invoke('settings:update', updates),
+  selectDirectory: (): Promise<string | null> =>
+    ipcRenderer.invoke('settings:select-directory'),
+  backup: (): Promise<boolean> =>
+    ipcRenderer.invoke('settings:backup'),
+  restore: (): Promise<boolean> =>
+    ipcRenderer.invoke('settings:restore'),
 
   // Events from main
   onMemoInit: (callback: (data: { memoId: string; isRolledUp: boolean }) => void): void => {

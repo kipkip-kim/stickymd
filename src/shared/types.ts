@@ -1,5 +1,20 @@
 /** Shared types used across main, preload, and renderer */
 
+export interface AppSettings {
+  fontPreset: string
+  autoSaveSeconds: number
+  trashDays: number
+  savePath: string
+  autoStart: boolean
+  darkMode: 'system' | 'light' | 'dark'
+  maxOpenWindows: number
+  globalHotkey: string
+  deleteConfirm: boolean
+  immediateDelete: boolean
+  sortBy: 'modified' | 'created' | 'title'
+  sortOrder: 'asc' | 'desc'
+}
+
 export interface MemoFrontmatter {
   title: string
   created: string

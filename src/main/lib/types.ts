@@ -11,20 +11,8 @@ export interface AppState {
   openMemoIds: string[]
 }
 
-export interface AppSettings {
-  fontPreset: string
-  autoSaveSeconds: number
-  trashDays: number
-  savePath: string
-  autoStart: boolean
-  darkMode: 'system' | 'light' | 'dark'
-  maxOpenWindows: number
-  globalHotkey: string
-  deleteConfirm: boolean
-  immediateDelete: boolean
-  sortBy: 'modified' | 'created' | 'title'
-  sortOrder: 'asc' | 'desc'
-}
+import type { AppSettings } from '../../shared/types'
+export type { AppSettings }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   fontPreset: '기본',

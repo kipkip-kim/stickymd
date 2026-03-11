@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import type { MemoData } from '../../../shared/types'
+import type { MemoData, AppSettings } from '../../../shared/types'
 import styles from './ManagerWindow.module.css'
 
 type Tab = 'memos' | 'trash' | 'settings'
@@ -77,7 +77,7 @@ export default function ManagerWindow(): React.JSX.Element {
       <div className={styles.content}>
         {activeTab === 'memos' && <MemoList />}
         {activeTab === 'trash' && <TrashList />}
-        {activeTab === 'settings' && <div className={styles.placeholder}>설정 (Phase 11)</div>}
+        {activeTab === 'settings' && <SettingsPanel />}
       </div>
     </div>
   )
@@ -419,6 +419,195 @@ function TrashList(): React.JSX.Element {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+const FONT_PRESETS: Record<string, string> = {
+  '기본': "Pretendard, '맑은 고딕', sans-serif",
+  '코딩': 'D2Coding, monospace',
+  '필기체': "'나눔손글씨 펜', '맑은 고딕', sans-serif",
+  '고딕': "'Noto Sans KR', '맑은 고딕', sans-serif",
+  '명조': "'Noto Serif KR', serif"
+}
+
+function SettingsPanel(): React.JSX.Element {
+  const [settings, setSettings] = useState<AppSettings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [pathError, setPathError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const load = async (): Promise<void> => {
+      try {
+        const s = await window.api.getSettings()
+        setSettings(s)
+      } catch (e) {
+        console.error('getSettings failed:', e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  // B27: Update setting immediately on change
+  const updateSetting = useCallback(async <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setSettings((prev) => prev ? { ...prev, [key]: value } : prev)
+    setPathError(null)
+
+    try {
+      const result = await window.api.updateSettings({ [key]: value })
+      if (!result.success && result.error) {
+        setPathError(result.error)
+        // Revert on failure
+        const fresh = await window.api.getSettings()
+        setSettings(fresh)
+      }
+    } catch (e) {
+      console.error('updateSettings failed:', e)
+    }
+  }, [])
+
+  const handleSelectDirectory = useCallback(async () => {
+    try {
+      const dir = await window.api.selectDirectory()
+      if (dir) {
+        updateSetting('savePath', dir)
+      }
+    } catch (e) {
+      console.error('selectDirectory failed:', e)
+    }
+  }, [updateSetting])
+
+  const handleBackup = useCallback(async () => {
+    try {
+      await window.api.backup()
+    } catch (e) {
+      console.error('backup failed:', e)
+    }
+  }, [])
+
+  const handleRestore = useCallback(async () => {
+    try {
+      await window.api.restore()
+    } catch (e) {
+      console.error('restore failed:', e)
+    }
+  }, [])
+
+  if (loading || !settings) {
+    return <div className={styles.placeholder}>로딩 중...</div>
+  }
+
+  return (
+    <div className={styles.settingsPanel}>
+      {/* Font preset */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>폰트</label>
+        <select
+          className={styles.settingSelect}
+          value={settings.fontPreset}
+          onChange={(e) => updateSetting('fontPreset', e.target.value)}
+        >
+          {Object.keys(FONT_PRESETS).map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Auto save seconds */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>자동 저장 주기</label>
+        <div className={styles.settingInputGroup}>
+          <input
+            type="number"
+            className={styles.settingInput}
+            value={settings.autoSaveSeconds}
+            min={1}
+            max={5}
+            onChange={(e) => {
+              const v = Math.max(1, Math.min(5, Number(e.target.value) || 1))
+              updateSetting('autoSaveSeconds', v)
+            }}
+          />
+          <span className={styles.settingUnit}>초</span>
+        </div>
+      </div>
+
+      {/* Trash days */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>휴지통 자동 비우기</label>
+        <div className={styles.settingInputGroup}>
+          <input
+            type="number"
+            className={styles.settingInput}
+            value={settings.trashDays}
+            min={1}
+            max={365}
+            onChange={(e) => {
+              const v = Math.max(1, Math.min(365, Number(e.target.value) || 30))
+              updateSetting('trashDays', v)
+            }}
+          />
+          <span className={styles.settingUnit}>일</span>
+        </div>
+      </div>
+
+      {/* Save path */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>저장 경로</label>
+        <div className={styles.settingPathGroup}>
+          <input
+            type="text"
+            className={`${styles.settingPathInput} ${pathError ? styles.settingError : ''}`}
+            value={settings.savePath}
+            onChange={(e) => updateSetting('savePath', e.target.value)}
+          />
+          <button className={styles.settingPathBtn} onClick={handleSelectDirectory}>...</button>
+        </div>
+        {pathError && <div className={styles.settingErrorText}>{pathError}</div>}
+      </div>
+
+      {/* Max open windows */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>동시 오픈 제한</label>
+        <div className={styles.settingInputGroup}>
+          <input
+            type="number"
+            className={styles.settingInput}
+            value={settings.maxOpenWindows}
+            min={1}
+            max={30}
+            onChange={(e) => {
+              const v = Math.max(1, Math.min(30, Number(e.target.value) || 10))
+              updateSetting('maxOpenWindows', v)
+            }}
+          />
+          <span className={styles.settingUnit}>개</span>
+        </div>
+      </div>
+
+      {/* Auto start */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>자동 시작</label>
+        <label className={styles.settingCheckbox}>
+          <input
+            type="checkbox"
+            checked={settings.autoStart}
+            onChange={(e) => updateSetting('autoStart', e.target.checked)}
+          />
+          <span>Windows 시작 시 자동 실행</span>
+        </label>
+      </div>
+
+      {/* Backup / Restore */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>백업 / 복원</label>
+        <div className={styles.settingBtnGroup}>
+          <button className={styles.actionBtn} onClick={handleBackup}>백업</button>
+          <button className={styles.actionBtn} onClick={handleRestore}>복원</button>
+        </div>
+      </div>
     </div>
   )
 }
