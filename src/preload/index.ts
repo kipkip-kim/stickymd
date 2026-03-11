@@ -77,6 +77,10 @@ const api = {
   restore: (): Promise<boolean> =>
     ipcRenderer.invoke('settings:restore'),
 
+  // Fonts
+  listFonts: (): Promise<string[]> =>
+    ipcRenderer.invoke('fonts:list'),
+
   // Theme
   getTheme: (): Promise<'light' | 'dark'> =>
     ipcRenderer.invoke('theme:get'),

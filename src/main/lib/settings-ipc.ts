@@ -1,6 +1,7 @@
 import { ipcMain, dialog, app, BrowserWindow } from 'electron'
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
+import { exec } from 'child_process'
 import { settingsStore, stateStore, getSaveDir } from './store'
 import { isPathAccessible } from './json-store'
 import { closeAllMemoWindows } from './window-manager'
@@ -266,5 +267,27 @@ export function registerSettingsIPC(): void {
   // Restore
   ipcMain.handle('settings:restore', async () => {
     return restoreBackup()
+  })
+
+  // System font list (cached at first request)
+  let fontCache: string[] | null = null
+  ipcMain.handle('fonts:list', async () => {
+    if (fontCache) return fontCache
+    return new Promise<string[]>((resolve) => {
+      exec(
+        'powershell -NoProfile -Command "[System.Reflection.Assembly]::LoadWithPartialName(\'System.Drawing\') | Out-Null; (New-Object System.Drawing.Text.InstalledFontCollection).Families | ForEach-Object { $_.Name }"',
+        { encoding: 'utf8', windowsHide: true },
+        (err, stdout) => {
+          if (err) {
+            console.error('font list failed:', err)
+            resolve([])
+            return
+          }
+          const fonts = stdout.split('\n').map((f) => f.trim()).filter(Boolean).sort()
+          fontCache = fonts
+          resolve(fonts)
+        }
+      )
+    })
   })
 }

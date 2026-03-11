@@ -499,24 +499,24 @@ function TrashList(): React.JSX.Element {
   )
 }
 
-const FONT_PRESETS: Record<string, string> = {
-  '기본': "Pretendard, '맑은 고딕', sans-serif",
-  '코딩': 'D2Coding, monospace',
-  '필기체': "'나눔손글씨 펜', '맑은 고딕', sans-serif",
-  '고딕': "'Noto Sans KR', '맑은 고딕', sans-serif",
-  '명조': "'Noto Serif KR', serif"
-}
-
 function SettingsPanel(): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [pathError, setPathError] = useState<string | null>(null)
+  const [systemFonts, setSystemFonts] = useState<string[]>([])
+  const [fontSearch, setFontSearch] = useState('')
+  const [showFontDropdown, setShowFontDropdown] = useState(false)
+  const fontDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const load = async (): Promise<void> => {
       try {
-        const s = await window.api.getSettings()
+        const [s, fonts] = await Promise.all([
+          window.api.getSettings(),
+          window.api.listFonts()
+        ])
         setSettings(s)
+        setSystemFonts(fonts)
       } catch (e) {
         console.error('getSettings failed:', e)
       } finally {
@@ -525,6 +525,18 @@ function SettingsPanel(): React.JSX.Element {
     }
     load()
   }, [])
+
+  // Close font dropdown on outside click
+  useEffect(() => {
+    if (!showFontDropdown) return
+    const handleClick = (e: MouseEvent): void => {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(e.target as Node)) {
+        setShowFontDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showFontDropdown])
 
   // B27: Update setting immediately on change
   const updateSetting = useCallback(async <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
@@ -577,18 +589,69 @@ function SettingsPanel(): React.JSX.Element {
 
   return (
     <div className={styles.settingsPanel}>
-      {/* Font preset */}
+      {/* Font family */}
       <div className={styles.settingRow}>
         <label className={styles.settingLabel}>폰트</label>
-        <select
-          className={styles.settingSelect}
-          value={settings.fontPreset}
-          onChange={(e) => updateSetting('fontPreset', e.target.value)}
-        >
-          {Object.keys(FONT_PRESETS).map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
+        <div className={styles.fontPicker} ref={fontDropdownRef}>
+          <input
+            type="text"
+            className={styles.fontSearchInput}
+            value={showFontDropdown ? fontSearch : settings.fontFamily}
+            placeholder="폰트 검색..."
+            onFocus={() => { setShowFontDropdown(true); setFontSearch('') }}
+            onChange={(e) => setFontSearch(e.target.value)}
+          />
+          <span className={styles.fontPreview} style={{ fontFamily: settings.fontFamily }}>
+            가나다 ABC 123
+          </span>
+          {showFontDropdown && (() => {
+            const query = fontSearch.toLowerCase()
+            const filtered = systemFonts.filter((f) => f.toLowerCase().includes(query))
+            const favorites = settings.favoriteFonts || []
+            const favs = filtered.filter((f) => favorites.includes(f))
+            const rest = filtered.filter((f) => !favorites.includes(f))
+            const toggleFav = (font: string, e: React.MouseEvent): void => {
+              e.stopPropagation()
+              const current = favorites
+              const next = current.includes(font)
+                ? current.filter((f) => f !== font)
+                : [...current, font]
+              updateSetting('favoriteFonts', next)
+            }
+            const renderItem = (font: string): React.JSX.Element => (
+              <button
+                key={font}
+                className={`${styles.fontItem} ${settings.fontFamily === font ? styles.fontItemActive : ''}`}
+                style={{ fontFamily: font }}
+                onClick={() => {
+                  updateSetting('fontFamily', font)
+                  setShowFontDropdown(false)
+                }}
+              >
+                <span className={styles.fontItemName}>{font}</span>
+                <span
+                  className={styles.fontFavBtn}
+                  onClick={(e) => toggleFav(font, e)}
+                  title={favorites.includes(font) ? '즐겨찾기 해제' : '즐겨찾기'}
+                >
+                  {favorites.includes(font) ? '★' : '☆'}
+                </span>
+              </button>
+            )
+            return (
+              <div className={styles.fontDropdown}>
+                {favs.length > 0 && (
+                  <>
+                    <div className={styles.fontSectionLabel}>즐겨찾기</div>
+                    {favs.map(renderItem)}
+                    <div className={styles.fontDivider} />
+                  </>
+                )}
+                {rest.map(renderItem)}
+              </div>
+            )
+          })()}
+        </div>
       </div>
 
       {/* Dark mode */}

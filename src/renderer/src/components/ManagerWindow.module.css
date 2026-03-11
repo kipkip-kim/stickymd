@@ -437,3 +437,102 @@
   display: flex;
   gap: 8px;
 }
+
+/* Font picker */
+.fontPicker {
+  position: relative;
+}
+
+.fontSearchInput {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  max-width: 300px;
+}
+
+.fontSearchInput:focus {
+  border-color: var(--border-focus);
+}
+
+.fontPreview {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.fontDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-width: 300px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  box-shadow: var(--shadow-dropdown);
+  z-index: 20;
+  margin-top: 2px;
+}
+
+.fontItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.fontItem:hover {
+  background: var(--bg-hover);
+}
+
+.fontItemActive {
+  background: var(--bg-active);
+  font-weight: 600;
+}
+
+.fontItemName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fontFavBtn {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 0 2px;
+}
+
+.fontFavBtn:hover {
+  color: #e6a817;
+}
+
+.fontSectionLabel {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.fontDivider {
+  height: 1px;
+  background: var(--border-secondary);
+  margin: 4px 0;
+}

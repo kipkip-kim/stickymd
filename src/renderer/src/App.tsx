@@ -3,7 +3,7 @@ import type { Editor } from '@milkdown/kit/core'
 import Titlebar from './components/Titlebar'
 import MemoEditor from './components/MemoEditor'
 import EditorToolbar from './components/EditorToolbar'
-import { DEFAULT_COLOR, getEffectiveColor } from './constants/colors'
+import { DEFAULT_COLOR, getEffectiveColor, isLightColor } from './constants/colors'
 
 const DEFAULT_AUTO_SAVE_MS = 2000
 
@@ -16,6 +16,7 @@ function App(): React.JSX.Element {
   const [initialContent, setInitialContent] = useState<string | null>(null)
   const [title, setTitle] = useState('새 메모')
   const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
+  const [fontFamily, setFontFamily] = useState('')
   const getEditorRef = useRef<() => Editor | undefined>(() => undefined)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingContentRef = useRef<string | null>(null)
@@ -60,10 +61,13 @@ function App(): React.JSX.Element {
       setMemoId(data.memoId)
       setIsRolledUp(data.isRolledUp)
     })
-    // D11: Fetch auto-save interval from settings
-    window.api.getAutoSaveMs()
-      .then((ms) => { autoSaveMsRef.current = ms })
-      .catch(() => { /* keep default */ })
+    // D11: Fetch settings
+    window.api.getSettings()
+      .then((s) => {
+        autoSaveMsRef.current = s.autoSaveSeconds * 1000
+        if (s.fontFamily) setFontFamily(s.fontFamily)
+      })
+      .catch(() => { /* keep defaults */ })
     window.api.onRollupChanged((rolledUp) => {
       setIsRolledUp(rolledUp)
     })
@@ -176,11 +180,13 @@ function App(): React.JSX.Element {
 
   // Compute effective background color for dark mode
   const effectiveColor = getEffectiveColor(color, isDark)
+  // When background is dark but theme is light, force light text
+  const forceDarkNote = !isDark && !isLightColor(effectiveColor)
 
   // Don't render editor until content is loaded
   if (initialContent === null && memoId) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: effectiveColor }}>
+      <div data-note-dark={forceDarkNote || undefined} style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: effectiveColor, fontFamily: fontFamily || undefined }}>
         <Titlebar memoId={memoId} isRolledUp={isRolledUp} color={color} isDark={isDark} onColorChange={handleColorChange} title={title} />
       </div>
     )
@@ -188,12 +194,14 @@ function App(): React.JSX.Element {
 
   return (
     <div
+      data-note-dark={forceDarkNote || undefined}
       style={{
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
         overflow: 'hidden',
-        backgroundColor: effectiveColor
+        backgroundColor: effectiveColor,
+        fontFamily: fontFamily || undefined
       }}
     >
       <Titlebar

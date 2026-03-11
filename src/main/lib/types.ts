@@ -15,7 +15,8 @@ import type { AppSettings } from '../../shared/types'
 export type { AppSettings }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  fontPreset: '기본',
+  fontFamily: "Pretendard, '맑은 고딕', sans-serif",
+  favoriteFonts: [],
   autoSaveSeconds: 2,
   trashDays: 30,
   savePath: '',  // Set at runtime to DEFAULT_SAVE_DIR

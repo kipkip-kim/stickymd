@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { HexColorPicker } from 'react-colorful'
-import { COLOR_PRESETS } from '../constants/colors'
+import { COLOR_PRESETS, DARK_NOTE_BG } from '../constants/colors'
 import styles from './ColorPalette.module.css'
 
 function isLightColor(hex: string): boolean {
@@ -57,6 +57,13 @@ export default function ColorPalette({
   return (
     <div className={`${styles.container} ${isDark ? styles.dark : ''}`} ref={containerRef}>
       <div className={styles.presets}>
+        <button
+          className={`${styles.swatch} ${currentColor === DARK_NOTE_BG ? styles.swatchSelected : ''}`}
+          onClick={() => handlePresetClick(DARK_NOTE_BG)}
+          title="다크"
+        >
+          <div className={styles.swatchInner} style={{ backgroundColor: DARK_NOTE_BG }} />
+        </button>
         {COLOR_PRESETS.map((preset) => (
           <button
             key={preset.name}

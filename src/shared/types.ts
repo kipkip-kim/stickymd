@@ -1,7 +1,8 @@
 /** Shared types used across main, preload, and renderer */
 
 export interface AppSettings {
-  fontPreset: string
+  fontFamily: string
+  favoriteFonts: string[]
   autoSaveSeconds: number
   trashDays: number
   savePath: string
