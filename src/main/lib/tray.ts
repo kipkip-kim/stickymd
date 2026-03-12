@@ -23,7 +23,7 @@ export function createTray(): void {
   }
 
   tray = new Tray(icon)
-  tray.setToolTip('Sticky Memo')
+  tray.setToolTip('Sticky MD')
 
   // Build context menu
   updateTrayMenu()
@@ -100,7 +100,8 @@ async function restoreWindows(): Promise<void> {
 
 /** Create a simple fallback tray icon (yellow square) */
 function createFallbackIcon(): Electron.NativeImage {
-  const size = 256
+  // L1: Use 32x32 instead of 256x256 (tray only needs 16x16, 32x32 is sufficient for HiDPI)
+  const size = 32
   const canvas = Buffer.alloc(size * size * 4)
   // Fill with yellow (#FFF9B1)
   for (let i = 0; i < size * size; i++) {

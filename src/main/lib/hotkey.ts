@@ -1,17 +1,15 @@
-import { globalShortcut, BrowserWindow } from 'electron'
+import { globalShortcut, BrowserWindow, app } from 'electron'
 import { createMemoWindow } from './window-manager'
 import { getSettings } from './store'
 
 let currentAccelerator: string | null = null
+const isDev = !app.isPackaged
 
 /** The hotkey callback — focus memo or create new */
 function hotkeyCallback(): void {
-  console.log('[hotkey] callback fired')
   try {
     const windows = BrowserWindow.getAllWindows()
       .filter((w) => !w.isDestroyed() && w.webContents.getURL().indexOf('#manager') === -1)
-
-    console.log(`[hotkey] memo windows: ${windows.length}`)
 
     if (windows.length > 0) {
       const win = windows[0]
@@ -33,7 +31,7 @@ export async function registerGlobalHotkey(): Promise<void> {
   if (!accelerator) return
 
   const success = registerAccelerator(accelerator)
-  console.log(`[hotkey] startup register "${accelerator}": ${success}`)
+  if (isDev) console.log(`[hotkey] startup register "${accelerator}": ${success}`)
 }
 
 function registerAccelerator(accelerator: string): boolean {
@@ -41,20 +39,20 @@ function registerAccelerator(accelerator: string): boolean {
     const success = globalShortcut.register(accelerator, hotkeyCallback)
     if (success) {
       currentAccelerator = accelerator
-      console.log(`[hotkey] registered: ${accelerator}, isRegistered=${globalShortcut.isRegistered(accelerator)}`)
+      if (isDev) console.log(`[hotkey] registered: ${accelerator}`)
       return true
     }
-    console.warn(`[hotkey] register returned false: ${accelerator}`)
+    if (isDev) console.warn(`[hotkey] register returned false: ${accelerator}`)
     return false
   } catch (e) {
-    console.warn(`[hotkey] register error: ${accelerator}`, e)
+    if (isDev) console.warn(`[hotkey] register error: ${accelerator}`, e)
     return false
   }
 }
 
 /** Update the global hotkey (called when settings change) */
 export function updateGlobalHotkey(newAccelerator: string): boolean {
-  console.log(`[hotkey] updateGlobalHotkey: "${newAccelerator}" (current: "${currentAccelerator}")`)
+  if (isDev) console.log(`[hotkey] updateGlobalHotkey: "${newAccelerator}" (current: "${currentAccelerator}")`)
   unregisterGlobalHotkey()
   if (!newAccelerator) return true
   return registerAccelerator(newAccelerator)
@@ -65,7 +63,7 @@ export function unregisterGlobalHotkey(): void {
   if (currentAccelerator) {
     try {
       globalShortcut.unregister(currentAccelerator)
-      console.log(`[hotkey] unregistered: ${currentAccelerator}`)
+      if (isDev) console.log(`[hotkey] unregistered: ${currentAccelerator}`)
     } catch { /* already unregistered */ }
     currentAccelerator = null
   }

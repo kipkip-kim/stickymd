@@ -36,7 +36,8 @@ export class JsonStore<T> {
    */
   async update(updater: (data: T) => T): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.writeQueue = this.writeQueue.then(async () => {
+      // M7: Catch to prevent broken chain if previous write rejected
+      this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {
         try {
           const current = await this.read()
           const updated = updater(current)

@@ -51,15 +51,15 @@ export async function createMemoWindow(
 ): Promise<{ memoId: string; window: BrowserWindow } | null> {
   const settings = await getSettings()
   if (windows.size >= settings.maxOpenWindows) {
-    // NFR-5: show warning if limit reached
+    // NFR-5: show warning if limit reached (L4: async to avoid blocking main process)
     const existing = BrowserWindow.getAllWindows()[0]
     if (existing) {
-      dialog.showMessageBoxSync(existing, {
+      dialog.showMessageBox(existing, {
         type: 'warning',
-        title: 'Sticky Memo',
+        title: 'Sticky MD',
         message: `동시에 열 수 있는 메모는 최대 ${settings.maxOpenWindows}개입니다.`,
         buttons: ['확인']
-      })
+      }).catch(() => {})
     }
     return null
   }
@@ -111,10 +111,12 @@ export async function createMemoWindow(
   windows.set(id, win)
   rollupState.set(id, { isRolledUp, prevHeight: height })
 
-  // Block navigation inside app (links open in external browser)
+  // Block navigation inside app (links open in external browser, http/https only)
   win.webContents.on('will-navigate', (event, url) => {
     event.preventDefault()
-    shell.openExternal(url).catch((e) => console.error('openExternal failed:', e))
+    if (/^https?:\/\//i.test(url)) {
+      shell.openExternal(url).catch((e) => console.error('openExternal failed:', e))
+    }
   })
 
   // Send memoId to renderer once loaded
@@ -322,8 +324,9 @@ export function registerWindowIPC(): void {
     win.setOpacity(clamped)
   })
 
-  // Open external URL in default browser
+  // M7: Open external URL in default browser (only http/https)
   ipcMain.handle('shell:open-external', async (_event, url: string) => {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return
     await shell.openExternal(url)
   })
 

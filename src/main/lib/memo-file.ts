@@ -9,6 +9,12 @@ import type { MemoFrontmatter, MemoData, AlarmData } from '../../shared/types'
 
 export type { MemoFrontmatter, MemoData }
 
+/** H1: Validate memoId doesn't escape save directory (path traversal prevention) */
+function isValidMemoId(memoId: string): boolean {
+  // UUID format only — reject anything with path separators or dots
+  return /^[a-f0-9-]+$/i.test(memoId)
+}
+
 /** Track last saved content per memoId to avoid unnecessary writes (B6) */
 const lastSavedContent = new Map<string, string>()
 
@@ -39,6 +45,7 @@ function extractTitle(content: string): string {
 
 /** Read a memo .md file */
 export async function readMemo(memoId: string): Promise<MemoData | null> {
+  if (!isValidMemoId(memoId)) return null
   const saveDir = await getSaveDir()
   const filePath = join(saveDir, `${memoId}.md`)
 
@@ -76,6 +83,7 @@ export async function saveMemo(
   content: string,
   frontmatterUpdates?: Partial<MemoFrontmatter>
 ): Promise<void> {
+  if (!isValidMemoId(memoId)) return
   // B8: Skip save if memo is being deleted
   if (pendingDeleteIds.has(memoId)) return
 
@@ -149,6 +157,7 @@ export async function saveMemo(
 
 /** Delete empty memo file (B20) */
 export async function deleteEmptyMemo(memoId: string): Promise<void> {
+  if (!isValidMemoId(memoId)) return
   const saveDir = await getSaveDir()
   const filePath = join(saveDir, `${memoId}.md`)
   try {
@@ -168,7 +177,7 @@ export async function listMemos(): Promise<MemoData[]> {
 
     const memos: MemoData[] = []
     for (const file of memoFiles) {
-      const id = file.replace('.md', '')
+      const id = file.slice(0, -3)
       const memo = await readMemo(id)
       if (memo) memos.push(memo)
     }
@@ -319,6 +328,7 @@ export async function importMemoFromPath(filePath: string): Promise<MemoData | {
 
 /** Move memo to trash (B8: mark as pending delete to skip auto-save) */
 export async function deleteMemo(memoId: string): Promise<boolean> {
+  if (!isValidMemoId(memoId)) return false
   pendingDeleteIds.add(memoId)
   try {
     const saveDir = await getSaveDir()
@@ -338,6 +348,7 @@ export async function deleteMemo(memoId: string): Promise<boolean> {
 
 /** Permanently delete a memo from trash */
 export async function deletePermanent(memoId: string): Promise<boolean> {
+  if (!isValidMemoId(memoId)) return false
   try {
     const trashDir = await getTrashDir()
     await unlink(join(trashDir, `${memoId}.md`))
@@ -350,6 +361,7 @@ export async function deletePermanent(memoId: string): Promise<boolean> {
 
 /** Restore a memo from trash */
 export async function restoreMemo(memoId: string): Promise<boolean> {
+  if (!isValidMemoId(memoId)) return false
   try {
     const saveDir = await getSaveDir()
     const trashDir = await getTrashDir()
@@ -372,7 +384,7 @@ export async function listTrash(): Promise<MemoData[]> {
 
     const memos: MemoData[] = []
     for (const file of memoFiles) {
-      const id = file.replace('.md', '')
+      const id = file.slice(0, -3)
       const filePath = join(trashDir, file)
       try {
         const raw = await readFile(filePath, 'utf-8')

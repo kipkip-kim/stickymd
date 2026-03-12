@@ -1,7 +1,9 @@
 {
-  "name": "sticky-memo",
+  "name": "sticky-md",
   "version": "1.0.0",
-  "description": "Lightweight markdown sticky memo for Windows",
+  "description": "경량 마크다운 스티키 메모 — Lightweight markdown sticky memo for Windows",
+  "author": "Sticky MD",
+  "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

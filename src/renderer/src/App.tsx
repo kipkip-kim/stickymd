@@ -11,11 +11,16 @@ import { DEFAULT_COLOR, getEffectiveColor, isLightColor } from './constants/colo
 
 const DEFAULT_AUTO_SAVE_MS = 2000
 
+// C5: Reuse a single AudioContext to avoid browser resource limit (~6 instances)
+let sharedAudioCtx: AudioContext | null = null
+
 /** Play a pleasant alarm chime using Web Audio API */
 async function playAlarmSound(): Promise<void> {
   try {
-    const ctx = new AudioContext()
-    // Resume if suspended (Electron autoplay policy)
+    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+      sharedAudioCtx = new AudioContext()
+    }
+    const ctx = sharedAudioCtx
     if (ctx.state === 'suspended') {
       await ctx.resume()
     }
@@ -41,9 +46,6 @@ async function playAlarmSound(): Promise<void> {
       osc.start(now + note.time)
       osc.stop(now + note.time + note.duration)
     }
-
-    // Close context after playback
-    setTimeout(() => ctx.close(), 2000)
   } catch {
     // Audio not available — skip silently
   }
@@ -94,6 +96,7 @@ function App(): React.JSX.Element {
   const colorRef = useRef(color)
   const opacityRef = useRef(opacity)
   const fontSizeRef = useRef(fontSize)
+  const fontSizeSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   colorRef.current = color
   opacityRef.current = opacity
   fontSizeRef.current = fontSize
@@ -270,15 +273,19 @@ function App(): React.JSX.Element {
     []
   )
 
-  // Save font size immediately
+  // M5: Debounce font size save (Ctrl+wheel fires rapidly)
   const handleFontSizeChange = useCallback(
     (newSize: number) => {
       setFontSize(newSize)
-      if (memoIdRef.current) {
-        window.api.saveMemo(memoIdRef.current, currentContentRef.current, {
-          color: colorRef.current, opacity: opacityRef.current, fontSize: newSize
-        }).catch((e) => console.error('fontSize save failed:', e))
-      }
+      if (fontSizeSaveTimerRef.current) clearTimeout(fontSizeSaveTimerRef.current)
+      fontSizeSaveTimerRef.current = setTimeout(() => {
+        fontSizeSaveTimerRef.current = null
+        if (memoIdRef.current) {
+          window.api.saveMemo(memoIdRef.current, currentContentRef.current, {
+            color: colorRef.current, opacity: opacityRef.current, fontSize: newSize
+          }).catch((e) => console.error('fontSize save failed:', e))
+        }
+      }, 300)
     },
     []
   )
@@ -490,7 +497,7 @@ function App(): React.JSX.Element {
         >
           {alarms.map((a, i) => (
             <div
-              key={i}
+              key={`${a.type}-${a.time}-${a.date || ''}-${a.startDate || ''}-${i}`}
               style={{
                 padding: '2px 10px',
                 fontSize: 14,

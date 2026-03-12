@@ -30,7 +30,7 @@ export async function toggleManagerWindow(tab?: string): Promise<void> {
     height: 500,
     minWidth: 400,
     minHeight: 350,
-    title: 'Sticky Memo — 관리자',
+    title: 'Sticky MD — 관리자',
     backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
     titleBarStyle: 'hidden',
     titleBarOverlay: isDark

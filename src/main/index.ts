@@ -100,7 +100,7 @@ async function restoreOrCreateMemo(): Promise<void> {
     if (wins.length > 0) {
       dialog.showMessageBox(wins[0], {
         type: 'info',
-        title: 'Sticky Memo',
+        title: 'Sticky MD',
         message: `동시 오픈 제한(${settings.maxOpenWindows}개)으로 ${skipped}개 메모가 복원되지 않았습니다.`,
         buttons: ['확인']
       })

@@ -4,7 +4,8 @@ import { stateStore } from './store'
 import type { AlarmData, MemoData } from '../../shared/types'
 
 let intervalId: NodeJS.Timeout | null = null
-const firedSet = new Set<string>() // "memoId:index:YYYY-MM-DD:HH:MM"
+const firedSet = new Set<string>() // content-based dedup key (C2)
+const MAX_FIRED_SET = 500 // C1: prevent unbounded growth
 let lastDateStr = ''
 
 /** Start the alarm scheduler (30s interval) */
@@ -38,8 +39,8 @@ function nowHHMM(): string {
 async function checkAlarms(): Promise<void> {
   const today = todayStr()
 
-  // Clear firedSet at midnight
-  if (today !== lastDateStr) {
+  // Clear firedSet at midnight or if it grows too large (C1)
+  if (today !== lastDateStr || firedSet.size > MAX_FIRED_SET) {
     firedSet.clear()
     lastDateStr = today
   }
@@ -59,7 +60,8 @@ async function checkAlarms(): Promise<void> {
       if (!alarm.enabled) continue
       if (!shouldFire(alarm, now, today, timeStr)) continue
 
-      const dedupKey = `${memo.id}:${i}:${today}:${timeStr}`
+      // C2: Content-based dedup key (stable across array index changes after auto-delete)
+      const dedupKey = `${memo.id}:${alarm.type}:${alarm.time}:${alarm.date || ''}:${alarm.startDate || ''}:${today}:${timeStr}`
       if (firedSet.has(dedupKey)) continue
 
       firedSet.add(dedupKey)
@@ -129,20 +131,8 @@ async function fireAlarm(memoId: string, _memo: MemoData): Promise<void> {
   // Restore if minimized
   if (win.isMinimized()) win.restore()
 
-  // Bring to top temporarily if not already pinned
-  const wasPinned = win.isAlwaysOnTop()
-  if (!wasPinned) {
-    win.setAlwaysOnTop(true, 'floating')
-    // Restore after 5 seconds
-    const w = win
-    setTimeout(() => {
-      if (w.isDestroyed()) return
-      if (w.isAlwaysOnTop()) {
-        w.setAlwaysOnTop(false)
-      }
-    }, 5000)
-  }
-
+  // H6: Use moveTop instead of setAlwaysOnTop — respects user's manual pin state
+  win.moveTop()
   win.focus()
   win.flashFrame(true)
   win.webContents.send('memo:alarm-fired')

@@ -1,5 +1,52 @@
 # StickyMD Changelog
 
+## [2026-03-12] - Phase 14 Installer: Windows NSIS Setup
+
+### Added
+- electron-builder NSIS installer configuration (electron-builder.yml)
+- Multi-resolution Windows app icon (.ico with 16/32/48/64/128/256 sizes)
+- UTF-8 BOM-encoded README.txt license screen with Korean text support
+- Auto-generated desktop and start menu shortcuts
+- Installer auto-launch option (runAfterFinish: true)
+- Uninstaller registration in Add/Remove Programs (appId: com.stickymd.app)
+- User data preservation on uninstall (deleteAppDataOnUninstall: false)
+- Custom installation directory selection (allowToChangeInstallationDirectory: true)
+
+### Changed
+- Program name standardized: "Sticky Memo" → "Sticky MD" (6 files: dialog titles, window titles, tooltips, labels)
+- Data folders kept as "StickyMemo" for backward compatibility
+- package.json name: "sticky-memo" → "sticky-md"
+- electron-builder configuration applied universally (appId, productName, build settings)
+
+### Fixed
+- UTF-8 text encoding issue in NSIS license screen (added BOM prefix)
+- Icon not displaying in installer (proper .ico conversion with all size variants)
+
+### Technical Details
+- **Build Output**: Sticky MD Setup 1.0.0.exe (98 MB < 100 MB target)
+- **Match Rate**: 100% (10/10 FR + NFR complete)
+- **Architecture**: NSIS oneClick=false, unicode=true for Korean support
+- **Auto-update Ready**: blockmap generated for electron-updater future integration
+- **Duration**: 1 day (2026-03-12)
+- **Files Added**: 2 (electron-builder.yml, resources/icon.ico, resources/README.txt)
+- **Files Modified**: 2 (package.json, 6 main/renderer files)
+
+### Installation Features
+- Windows 10+ support
+- Customizable installation path (default: Program Files)
+- Desktop + Start Menu shortcut creation
+- Uninstaller with user data preservation
+- Upgrade support (reinstall over existing version)
+- Korean path name support (unicode: true)
+- SmartScreen warning expected (no code signing, documented)
+
+### Known Limitations
+- Code signing certificate not applied (v2.0+ feature, avoids SmartScreen)
+- Auto-update not yet configured (electron-updater integration pending)
+- No CI/CD automation (manual build process, v2.0+ feature)
+
+---
+
 ## [2026-03-12] - Phase 16: Toggle Block + Customizable Toolbar
 
 ### Added

@@ -1,7 +1,7 @@
 import { ipcMain, dialog, app, BrowserWindow, clipboard } from 'electron'
-import { readdir, readFile, writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { exec } from 'child_process'
+import { readdir, readFile, writeFile, mkdir, stat } from 'fs/promises'
+import { join, resolve } from 'path'
+import { execFile } from 'child_process'
 import { settingsStore, stateStore, getSaveDir } from './store'
 import { isPathAccessible } from './json-store'
 import { closeAllMemoWindows } from './window-manager'
@@ -51,7 +51,7 @@ async function createBackup(): Promise<boolean> {
 
   const result = await dialog.showSaveDialog(parent, {
     defaultPath: defaultName,
-    filters: [{ name: 'Sticky Memo Backup', extensions: ['json'] }]
+    filters: [{ name: 'Sticky MD Backup', extensions: ['json'] }]
   })
 
   if (result.canceled || !result.filePath) return false
@@ -112,7 +112,7 @@ async function restoreBackup(): Promise<boolean> {
   if (!parent) return false
 
   const openResult = await dialog.showOpenDialog(parent, {
-    filters: [{ name: 'Sticky Memo Backup', extensions: ['json'] }],
+    filters: [{ name: 'Sticky MD Backup', extensions: ['json'] }],
     properties: ['openFile']
   })
 
@@ -131,6 +131,18 @@ async function restoreBackup(): Promise<boolean> {
   if (confirm.response !== 1) return false
 
   try {
+    // C2: Size limit to prevent OOM from crafted backup files
+    const fileStat = await stat(openResult.filePaths[0])
+    if (fileStat.size > 50 * 1024 * 1024) {
+      await dialog.showMessageBox(parent, {
+        type: 'error',
+        title: '복원 실패',
+        message: '백업 파일이 너무 큽니다 (최대 50MB).',
+        buttons: ['확인']
+      })
+      return false
+    }
+
     const raw = await readFile(openResult.filePaths[0], 'utf-8')
     const bundle = JSON.parse(raw) as BackupBundle
 
@@ -161,6 +173,8 @@ async function restoreBackup(): Promise<boolean> {
     for (const memo of bundle.memos) {
       try {
         const targetPath = join(saveDir, memo.filename)
+        // M6: Validate path stays within saveDir (prevent path traversal)
+        if (!resolve(targetPath).startsWith(resolve(saveDir))) continue
         // Ensure subdirectory exists (for .trash/)
         await mkdir(join(targetPath, '..'), { recursive: true })
         await writeFile(targetPath, memo.content, 'utf-8')
@@ -237,6 +251,14 @@ export function registerSettingsIPC(): void {
       await mkdir(join(updates.savePath, TRASH_DIR_NAME), { recursive: true })
     }
 
+    // M1: Validate hotkey BEFORE writing to store (fail fast)
+    if (updates.globalHotkey !== undefined) {
+      const ok = updateGlobalHotkey(updates.globalHotkey)
+      if (!ok) {
+        return { success: false, error: `핫키 등록 실패: ${updates.globalHotkey}` }
+      }
+    }
+
     // Apply auto-start setting
     if (updates.autoStart !== undefined) {
       app.setLoginItemSettings({ openAtLogin: updates.autoStart })
@@ -250,14 +272,6 @@ export function registerSettingsIPC(): void {
     // Broadcast theme change if darkMode was updated
     if (updates.darkMode !== undefined) {
       onDarkModeSettingChanged().catch((e) => console.error('theme broadcast failed:', e))
-    }
-
-    // Update global hotkey if changed
-    if (updates.globalHotkey !== undefined) {
-      const ok = updateGlobalHotkey(updates.globalHotkey)
-      if (!ok) {
-        return { success: false, error: `핫키 등록 실패: ${updates.globalHotkey}` }
-      }
     }
 
     // Broadcast setting changes to all memo windows
@@ -294,19 +308,21 @@ export function registerSettingsIPC(): void {
   let fontCache: string[] | null = null
   ipcMain.handle('fonts:list', async () => {
     if (fontCache) return fontCache
-    return new Promise<string[]>((resolve) => {
-      exec(
-        'powershell -NoProfile -Command "[System.Reflection.Assembly]::LoadWithPartialName(\'System.Drawing\') | Out-Null; (New-Object System.Drawing.Text.InstalledFontCollection).Families | ForEach-Object { $_.Name }"',
-        { encoding: 'utf8', windowsHide: true },
+    return new Promise<string[]>((res) => {
+      // C4: Use execFile instead of exec to prevent command injection
+      execFile(
+        'powershell',
+        ['-NoProfile', '-Command', "[System.Reflection.Assembly]::LoadWithPartialName('System.Drawing') | Out-Null; (New-Object System.Drawing.Text.InstalledFontCollection).Families | ForEach-Object { $_.Name }"],
+        { encoding: 'utf8', windowsHide: true, timeout: 10000 },
         (err, stdout) => {
           if (err) {
             console.error('font list failed:', err)
-            resolve([])
+            res([])
             return
           }
           const fonts = stdout.split('\n').map((f) => f.trim()).filter(Boolean).sort()
           fontCache = fonts
-          resolve(fonts)
+          res(fonts)
         }
       )
     })

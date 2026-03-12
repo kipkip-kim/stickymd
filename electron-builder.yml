@@ -1,0 +1,24 @@
+appId: com.stickymd.app
+productName: Sticky MD
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**/*
+extraResources:
+  - from: resources/README.txt
+    to: README.txt
+win:
+  target: nsis
+  icon: resources/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Sticky MD
+  runAfterFinish: true
+  unicode: true
+  deleteAppDataOnUninstall: false
+  license: resources/README.txt

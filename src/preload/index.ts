@@ -63,8 +63,9 @@ const api = {
   openMemo: (memoId: string): Promise<void> =>
     ipcRenderer.invoke('manager:open-memo', memoId),
 
-  // Manager events
+  // Manager events (M4: remove previous listener to prevent accumulation)
   onManagerSwitchTab: (callback: (tab: string) => void): void => {
+    ipcRenderer.removeAllListeners('manager:switch-tab')
     ipcRenderer.on('manager:switch-tab', (_event, tab) => callback(tab))
   },
 
@@ -92,11 +93,13 @@ const api = {
   clearAlarms: (memoId: string): Promise<boolean> =>
     ipcRenderer.invoke('memo:clear-alarms', memoId),
   onAlarmFired: (callback: () => void): void => {
+    ipcRenderer.removeAllListeners('memo:alarm-fired')
     ipcRenderer.on('memo:alarm-fired', () => callback())
   },
 
   // Settings change event
   onSettingsChanged: (callback: (updates: Partial<AppSettings>) => void): void => {
+    ipcRenderer.removeAllListeners('settings:changed')
     ipcRenderer.on('settings:changed', (_event, updates) => callback(updates))
   },
 
@@ -112,17 +115,21 @@ const api = {
 
   // Search events (memo window receives from main)
   onSearchQuery: (callback: (query: string) => void): void => {
+    ipcRenderer.removeAllListeners('search:query')
     ipcRenderer.on('search:query', (_event, query) => callback(query))
   },
   onSearchNavigate: (callback: (direction: 'next' | 'prev') => void): void => {
+    ipcRenderer.removeAllListeners('search:navigate')
     ipcRenderer.on('search:navigate', (_event, direction) => callback(direction))
   },
   onSearchClose: (callback: () => void): void => {
+    ipcRenderer.removeAllListeners('search:close')
     ipcRenderer.on('search:close', () => callback())
   },
 
   // Search events (search window receives from main)
   onSearchResult: (callback: (count: number, activeIndex: number) => void): void => {
+    ipcRenderer.removeAllListeners('search:result')
     ipcRenderer.on('search:result', (_event, count, activeIndex) => callback(count, activeIndex))
   },
 
@@ -138,17 +145,21 @@ const api = {
   getTheme: (): Promise<'light' | 'dark'> =>
     ipcRenderer.invoke('theme:get'),
   onThemeChanged: (callback: (theme: 'light' | 'dark') => void): void => {
+    ipcRenderer.removeAllListeners('theme:changed')
     ipcRenderer.on('theme:changed', (_event, theme) => callback(theme))
   },
 
   // Events from main
   onMemoInit: (callback: (data: { memoId: string; isRolledUp: boolean }) => void): void => {
+    ipcRenderer.removeAllListeners('memo:init')
     ipcRenderer.on('memo:init', (_event, data) => callback(data))
   },
   onRollupChanged: (callback: (isRolledUp: boolean) => void): void => {
+    ipcRenderer.removeAllListeners('memo:rollup-changed')
     ipcRenderer.on('memo:rollup-changed', (_event, isRolledUp) => callback(isRolledUp))
   },
   onFlushSave: (callback: () => void): void => {
+    ipcRenderer.removeAllListeners('memo:flush-save')
     ipcRenderer.on('memo:flush-save', () => callback())
   },
 
