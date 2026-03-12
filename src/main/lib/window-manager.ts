@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, ipcMain, shell, dialog } from 'electron'
+import { app, BrowserWindow, screen, ipcMain, shell, dialog } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { randomUUID } from 'crypto'
@@ -24,6 +24,9 @@ const rollupState = new Map<string, { isRolledUp: boolean; prevHeight: number }>
 
 /** B2: Prevent rapid rollup toggle */
 const transitioning = new Set<string>()
+
+/** Search windows: memoId → search BrowserWindow */
+const searchWindows = new Map<string, BrowserWindow>()
 
 /** Get all open memo IDs */
 export function getOpenMemoIds(): string[] {
@@ -119,8 +122,13 @@ export async function createMemoWindow(
     win.webContents.send('memo:init', { memoId: id, isRolledUp })
   })
 
+
   win.on('ready-to-show', () => {
     win.show()
+    // Open DevTools in dev mode
+    if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
+      win.webContents.openDevTools({ mode: 'detach' })
+    }
   })
 
   // Save position/size on move/resize with debounce (1 second)
@@ -148,6 +156,12 @@ export async function createMemoWindow(
     windows.delete(id)
     rollupState.delete(id)
     transitioning.delete(id)
+    // Close search window if open
+    const searchWin = searchWindows.get(id)
+    if (searchWin && !searchWin.isDestroyed()) {
+      searchWin.close()
+    }
+    searchWindows.delete(id)
     // Update openMemoIds in state
     saveOpenMemoIds()
   })
@@ -309,5 +323,108 @@ export function registerWindowIPC(): void {
   // Open external URL in default browser
   ipcMain.handle('shell:open-external', async (_event, url: string) => {
     await shell.openExternal(url)
+  })
+
+  // Search: open search window for a memo (positioned below titlebar)
+  ipcMain.handle('search:open', async (_event, memoId: string) => {
+    // If already open, focus it
+    const existing = searchWindows.get(memoId)
+    if (existing && !existing.isDestroyed()) {
+      existing.focus()
+      return
+    }
+
+    const memoWin = windows.get(memoId)
+    if (!memoWin || memoWin.isDestroyed()) return
+
+    // Get titlebar height from settings to position below it
+    const settings = await getSettings()
+    const titlebarH = settings.titlebarStyle === 'compact' ? 28
+      : settings.titlebarStyle === 'spacious' ? 44 : 36
+    const searchH = 44
+    const searchW = 320
+    const memoBounds = memoWin.getBounds()
+    const w = Math.min(searchW, memoBounds.width)
+
+    const searchWin = new BrowserWindow({
+      x: memoBounds.x + memoBounds.width - w,
+      y: memoBounds.y + titlebarH,
+      width: w,
+      height: searchH,
+      frame: false,
+      transparent: true,
+      resizable: false,
+      skipTaskbar: true,
+      parent: memoWin,
+      show: false,
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false,
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    })
+
+    searchWindows.set(memoId, searchWin)
+
+    searchWin.on('ready-to-show', () => {
+      searchWin.show()
+    })
+
+    searchWin.on('closed', () => {
+      searchWindows.delete(memoId)
+      // Notify memo window to clear decorations
+      const mw = windows.get(memoId)
+      if (mw && !mw.isDestroyed()) {
+        mw.webContents.send('search:close')
+      }
+    })
+
+    // Reposition search window when memo window moves/resizes
+    const reposition = (): void => {
+      if (searchWin.isDestroyed()) return
+      const b = memoWin.getBounds()
+      const rw = Math.min(searchW, b.width)
+      searchWin.setBounds({ x: b.x + b.width - rw, y: b.y + titlebarH, width: rw, height: searchH })
+    }
+    memoWin.on('move', reposition)
+    memoWin.on('resize', reposition)
+    searchWin.on('closed', () => {
+      memoWin.removeListener('move', reposition)
+      memoWin.removeListener('resize', reposition)
+    })
+
+    // Load search page
+    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+      searchWin.loadURL(process.env['ELECTRON_RENDERER_URL'] + '#search?memoId=' + memoId)
+    } else {
+      searchWin.loadFile(join(__dirname, '../renderer/index.html'), {
+        hash: 'search?memoId=' + memoId
+      })
+    }
+  })
+
+  // Search: relay query from search window to memo window
+  ipcMain.handle('search:query', (_event, memoId: string, query: string) => {
+    const memoWin = windows.get(memoId)
+    if (memoWin && !memoWin.isDestroyed()) {
+      memoWin.webContents.send('search:query', query)
+    }
+  })
+
+  // Search: relay navigate from search window to memo window
+  ipcMain.handle('search:navigate', (_event, memoId: string, direction: string) => {
+    const memoWin = windows.get(memoId)
+    if (memoWin && !memoWin.isDestroyed()) {
+      memoWin.webContents.send('search:navigate', direction)
+    }
+  })
+
+  // Search: relay result from memo window to search window
+  ipcMain.handle('search:result', (_event, memoId: string, count: number, activeIndex: number) => {
+    const searchWin = searchWindows.get(memoId)
+    if (searchWin && !searchWin.isDestroyed()) {
+      searchWin.webContents.send('search:result', count, activeIndex)
+    }
   })
 }

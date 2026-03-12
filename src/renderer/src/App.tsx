@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Editor } from '@milkdown/kit/core'
+import { editorViewCtx } from '@milkdown/kit/core'
+import { searchPluginKey } from './plugins/search-plugin'
+import type { SearchAction } from './plugins/search-plugin'
 import type { AlarmData } from '../../shared/types'
 import Titlebar from './components/Titlebar'
 import MemoEditor from './components/MemoEditor'
@@ -80,6 +83,7 @@ function App(): React.JSX.Element {
   const [alarms, setAlarms] = useState<AlarmData[]>([])
   const [alarmFiring, setAlarmFiring] = useState(false)
   const [titlebarStyle, setTitlebarStyle] = useState<'compact' | 'default' | 'spacious'>('default')
+
   const getEditorRef = useRef<() => Editor | undefined>(() => undefined)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingContentRef = useRef<string | null>(null)
@@ -291,6 +295,75 @@ function App(): React.JSX.Element {
     return () => document.removeEventListener('wheel', handleWheel)
   }, [handleFontSizeChange])
 
+
+  // Ctrl+F: open search window
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault()
+        e.stopPropagation()
+        if (memoIdRef.current) {
+          window.api.openSearchWindow(memoIdRef.current)
+        }
+      }
+    }
+    document.addEventListener('keydown', handler, true)
+    return () => document.removeEventListener('keydown', handler, true)
+  }, [])
+
+  // Helper: dispatch search action to ProseMirror plugin
+  const dispatchSearchAction = useCallback((action: SearchAction) => {
+    const editor = getEditorRef.current()
+    if (!editor) return
+    const view = editor.ctx.get(editorViewCtx)
+    view.dispatch(view.state.tr.setMeta(searchPluginKey, action))
+    // Send match results back to search window
+    const state = searchPluginKey.getState(view.state)
+    if (state && memoIdRef.current) {
+      window.api.sendSearchResult(memoIdRef.current, state.matches.length, state.activeIndex)
+    }
+    // Scroll to active match
+    if (action.type === 'navigate' || (action.type === 'search' && state && state.activeIndex >= 0)) {
+      const updatedState = searchPluginKey.getState(view.state)
+      if (updatedState && updatedState.activeIndex >= 0 && updatedState.matches[updatedState.activeIndex]) {
+        const { from } = updatedState.matches[updatedState.activeIndex]
+        const coords = view.coordsAtPos(from)
+        const scrollEl = view.dom.closest('.editor') as HTMLElement | null
+        if (scrollEl && coords) {
+          const editorRect = scrollEl.getBoundingClientRect()
+          const relY = coords.top - editorRect.top
+          if (relY < 0 || relY > editorRect.height - 30) {
+            scrollEl.scrollBy({ top: relY - editorRect.height / 3, behavior: 'smooth' })
+          }
+        }
+      }
+    }
+  }, [])
+
+  // Listen for search IPC from search window (via main process)
+  useEffect(() => {
+    window.api.onSearchQuery((query) => {
+      dispatchSearchAction({ type: 'search', query })
+    })
+    window.api.onSearchNavigate((direction) => {
+      dispatchSearchAction({ type: 'navigate', direction })
+    })
+    window.api.onSearchClose(() => {
+      dispatchSearchAction({ type: 'clear' })
+      // Restore focus to editor
+      const editor = getEditorRef.current()
+      if (editor) {
+        const view = editor.ctx.get(editorViewCtx)
+        view.focus()
+      }
+    })
+    return () => {
+      window.api.removeAllListeners('search:query')
+      window.api.removeAllListeners('search:navigate')
+      window.api.removeAllListeners('search:close')
+    }
+  }, [dispatchSearchAction])
+
   // Copy memo content to clipboard
   const handleCopy = useCallback(async () => {
     const markdown = currentContentRef.current
@@ -453,6 +526,7 @@ function App(): React.JSX.Element {
           ))}
         </div>
       )}
+
       {!isRolledUp && (
         <>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

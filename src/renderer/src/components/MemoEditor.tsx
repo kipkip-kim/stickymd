@@ -8,6 +8,7 @@ import { clipboard } from '@milkdown/kit/plugin/clipboard'
 import { replaceAll } from '@milkdown/kit/utils'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
 import { underlinePlugin } from '../plugins/underline-plugin'
+import { searchPlugin } from '../plugins/search-plugin'
 import { useSlashCommand } from '../hooks/useSlashCommand'
 import { useSlashExecute } from '../hooks/useSlashExecute'
 import SlashDropdown from './SlashDropdown'
@@ -68,6 +69,7 @@ function MilkdownEditor({
       .use(commonmark)
       .use(gfm)
       .use(underlinePlugin)
+      .use(searchPlugin)
       .use(history)
       .use(listener)
       .use(clipboard)

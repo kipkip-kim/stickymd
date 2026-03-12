@@ -100,6 +100,32 @@ const api = {
     ipcRenderer.on('settings:changed', (_event, updates) => callback(updates))
   },
 
+  // Search (separate BrowserWindow approach)
+  openSearchWindow: (memoId: string): Promise<void> =>
+    ipcRenderer.invoke('search:open', memoId),
+  sendSearchQuery: (memoId: string, query: string): Promise<void> =>
+    ipcRenderer.invoke('search:query', memoId, query),
+  sendSearchNavigate: (memoId: string, direction: 'next' | 'prev'): Promise<void> =>
+    ipcRenderer.invoke('search:navigate', memoId, direction),
+  sendSearchResult: (memoId: string, count: number, activeIndex: number): Promise<void> =>
+    ipcRenderer.invoke('search:result', memoId, count, activeIndex),
+
+  // Search events (memo window receives from main)
+  onSearchQuery: (callback: (query: string) => void): void => {
+    ipcRenderer.on('search:query', (_event, query) => callback(query))
+  },
+  onSearchNavigate: (callback: (direction: 'next' | 'prev') => void): void => {
+    ipcRenderer.on('search:navigate', (_event, direction) => callback(direction))
+  },
+  onSearchClose: (callback: () => void): void => {
+    ipcRenderer.on('search:close', () => callback())
+  },
+
+  // Search events (search window receives from main)
+  onSearchResult: (callback: (count: number, activeIndex: number) => void): void => {
+    ipcRenderer.on('search:result', (_event, count, activeIndex) => callback(count, activeIndex))
+  },
+
   // Clipboard
   copyToClipboard: (text: string): Promise<void> =>
     ipcRenderer.invoke('clipboard:write', text),
@@ -125,6 +151,7 @@ const api = {
   onFlushSave: (callback: () => void): void => {
     ipcRenderer.on('memo:flush-save', () => callback())
   },
+
 
   // Cleanup
   removeAllListeners: (channel: string): void => {

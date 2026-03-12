@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import ManagerWindow from './components/ManagerWindow'
+import SearchWindow from './components/SearchWindow'
 import './theme.css'
 
 // Listen for theme changes — sets data-theme attribute for CSS variable switching.
@@ -19,11 +20,22 @@ async function init(): Promise<void> {
     // Default to light
   }
 
-  const isManager = /^#manager(\?|$)/.test(window.location.hash)
+  const hash = window.location.hash
+  const isManager = /^#manager(\?|$)/.test(hash)
+  const isSearch = /^#search(\?|$)/.test(hash)
+
+  let page: React.ReactNode
+  if (isSearch) {
+    page = <SearchWindow />
+  } else if (isManager) {
+    page = <ManagerWindow />
+  } else {
+    page = <App />
+  }
 
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      {isManager ? <ManagerWindow /> : <App />}
+      {page}
     </React.StrictMode>
   )
 }

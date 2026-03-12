@@ -177,6 +177,20 @@
   content: '';
 }
 
+/* Search highlight (ProseMirror decoration) */
+.ProseMirror span.search-highlight {
+  background-color: rgba(255, 152, 0, 0.25);
+  outline: 1px solid rgba(255, 152, 0, 0.5);
+  border-radius: 2px;
+  color: inherit;
+}
+.ProseMirror span.search-highlight-active {
+  background-color: rgba(255, 100, 0, 0.45);
+  outline: 2px solid rgba(255, 100, 0, 0.8);
+  border-radius: 2px;
+  color: inherit;
+}
+
 /* Drag-and-drop overlay */
 .drag-overlay {
   position: absolute;
