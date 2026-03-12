@@ -13,3 +13,9 @@
 ## UX 개선 (설계 필요)
 7. 색별 메모 목록 그룹핑 및 자동 정렬
 8. 메모창 마그네틱 기능 (창끼리 가까이 가면 스냅)
+
+## v2.0 백로그
+- 다국어 지원 (i18n) — react-i18next, ko.json/en.json 분리, 런타임 언어 전환
+- GitHub README.md 영문 작성 (대상: GitHub 사용자, 프로젝트 소개/스크린샷/설치방법/기능목록)
+- macOS 빌드 (.dmg) — macOS 환경 필요
+- Linux 빌드 (.AppImage/.deb)
