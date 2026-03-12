@@ -27,7 +27,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   deleteConfirm: true,
   immediateDelete: false,
   sortBy: 'modified',
-  sortOrder: 'desc'
+  sortOrder: 'desc',
+  titlebarStyle: 'default'
 }
 
 export const DEFAULT_STATE: AppState = {

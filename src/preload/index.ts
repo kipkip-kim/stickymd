@@ -82,15 +82,22 @@ const api = {
   restore: (): Promise<boolean> =>
     ipcRenderer.invoke('settings:restore'),
 
-  // Alarm
-  setAlarm: (memoId: string, alarm: AlarmData): Promise<boolean> =>
-    ipcRenderer.invoke('memo:set-alarm', memoId, alarm),
-  clearAlarm: (memoId: string): Promise<boolean> =>
-    ipcRenderer.invoke('memo:clear-alarm', memoId),
-  getAlarm: (memoId: string): Promise<AlarmData | null> =>
-    ipcRenderer.invoke('memo:get-alarm', memoId),
+  // Alarm (multi-alarm)
+  addAlarm: (memoId: string, alarm: AlarmData): Promise<boolean> =>
+    ipcRenderer.invoke('memo:add-alarm', memoId, alarm),
+  removeAlarm: (memoId: string, index: number): Promise<boolean> =>
+    ipcRenderer.invoke('memo:remove-alarm', memoId, index),
+  getAlarms: (memoId: string): Promise<AlarmData[]> =>
+    ipcRenderer.invoke('memo:get-alarms', memoId),
+  clearAlarms: (memoId: string): Promise<boolean> =>
+    ipcRenderer.invoke('memo:clear-alarms', memoId),
   onAlarmFired: (callback: () => void): void => {
     ipcRenderer.on('memo:alarm-fired', () => callback())
+  },
+
+  // Settings change event
+  onSettingsChanged: (callback: (updates: Partial<AppSettings>) => void): void => {
+    ipcRenderer.on('settings:changed', (_event, updates) => callback(updates))
   },
 
   // Clipboard

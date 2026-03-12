@@ -1,6 +1,6 @@
 .titlebar {
   -webkit-app-region: drag;
-  height: 36px;
+  /* height set via inline style (titlebarStyle) */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -24,8 +24,8 @@
   background: none;
   border: none;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
+  width: var(--tb-icon-size, 24px);
+  height: var(--tb-icon-size, 24px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,8 +33,8 @@
 }
 
 .colorDot {
-  width: 16px;
-  height: 16px;
+  width: var(--tb-dot-size, 16px);
+  height: var(--tb-dot-size, 16px);
   border-radius: 50%;
   border: 1px solid var(--note-dot-border);
 }
@@ -44,7 +44,7 @@
 }
 
 .title {
-  font-size: 12px;
+  font-size: var(--tb-title-font, 12px);
   opacity: 0.7;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -67,13 +67,13 @@
   background: none;
   border: none;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
+  width: var(--tb-icon-size, 24px);
+  height: var(--tb-icon-size, 24px);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--tb-btn-font, 14px);
   color: var(--note-text);
   opacity: 0.7;
   padding: 0;

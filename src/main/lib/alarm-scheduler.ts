@@ -4,7 +4,7 @@ import { stateStore } from './store'
 import type { AlarmData, MemoData } from '../../shared/types'
 
 let intervalId: NodeJS.Timeout | null = null
-const firedSet = new Set<string>() // "memoId:YYYY-MM-DD:HH:MM"
+const firedSet = new Set<string>() // "memoId:index:YYYY-MM-DD:HH:MM"
 let lastDateStr = ''
 
 /** Start the alarm scheduler (30s interval) */
@@ -49,17 +49,38 @@ async function checkAlarms(): Promise<void> {
   const memos = await listMemos()
 
   for (const memo of memos) {
-    const alarm = memo.frontmatter.alarm
-    if (!alarm || !alarm.enabled) continue
+    const alarms = memo.frontmatter.alarms
+    if (!alarms || alarms.length === 0) continue
 
-    if (!shouldFire(alarm, now, today, timeStr)) continue
+    const indicesToRemove: number[] = []
 
-    const dedupKey = `${memo.id}:${today}:${timeStr}`
-    if (firedSet.has(dedupKey)) continue
+    for (let i = 0; i < alarms.length; i++) {
+      const alarm = alarms[i]
+      if (!alarm.enabled) continue
+      if (!shouldFire(alarm, now, today, timeStr)) continue
 
-    firedSet.add(dedupKey)
-    await fireAlarm(memo.id, memo)
-    await autoDisableIfExpired(memo.id, alarm, today)
+      const dedupKey = `${memo.id}:${i}:${today}:${timeStr}`
+      if (firedSet.has(dedupKey)) continue
+
+      firedSet.add(dedupKey)
+      await fireAlarm(memo.id, memo)
+
+      // Auto-delete: once alarms and expired daterange alarms
+      if (shouldAutoDelete(alarm, today)) {
+        indicesToRemove.push(i)
+      }
+    }
+
+    // Remove fired once/expired alarms from the array
+    if (indicesToRemove.length > 0) {
+      const updated = alarms.filter((_, i) => !indicesToRemove.includes(i))
+      const freshMemo = await readMemo(memo.id)
+      if (freshMemo) {
+        await saveMemo(memo.id, freshMemo.content, {
+          alarms: updated.length > 0 ? updated : undefined
+        })
+      }
+    }
   }
 }
 
@@ -86,6 +107,13 @@ function shouldFire(alarm: AlarmData, now: Date, today: string, timeStr: string)
   }
 }
 
+/** Should this alarm be auto-deleted after firing? */
+function shouldAutoDelete(alarm: AlarmData, today: string): boolean {
+  if (alarm.type === 'once') return true
+  if (alarm.type === 'daterange' && alarm.endDate && alarm.endDate <= today) return true
+  return false
+}
+
 /** Fire an alarm — bring window to front and notify renderer */
 async function fireAlarm(memoId: string, _memo: MemoData): Promise<void> {
   let win = getWindowByMemoId(memoId)
@@ -109,7 +137,6 @@ async function fireAlarm(memoId: string, _memo: MemoData): Promise<void> {
     const w = win
     setTimeout(() => {
       if (w.isDestroyed()) return
-      // Only restore if still on top (user may have pinned/unpinned manually)
       if (w.isAlwaysOnTop()) {
         w.setAlwaysOnTop(false)
       }
@@ -119,28 +146,4 @@ async function fireAlarm(memoId: string, _memo: MemoData): Promise<void> {
   win.focus()
   win.flashFrame(true)
   win.webContents.send('memo:alarm-fired')
-}
-
-/** Auto-disable expired alarms */
-async function autoDisableIfExpired(
-  memoId: string,
-  alarm: AlarmData,
-  today: string
-): Promise<void> {
-  let shouldDisable = false
-
-  if (alarm.type === 'once') {
-    shouldDisable = true
-  } else if (alarm.type === 'daterange' && alarm.endDate && alarm.endDate <= today) {
-    shouldDisable = true
-  }
-
-  if (shouldDisable) {
-    const memo = await readMemo(memoId)
-    if (memo) {
-      await saveMemo(memoId, memo.content, {
-        alarm: { ...alarm, enabled: false }
-      })
-    }
-  }
 }

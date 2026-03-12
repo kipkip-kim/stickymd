@@ -3,9 +3,8 @@ import type { AlarmData } from '../../../shared/types'
 import styles from './AlarmPopover.module.css'
 
 interface AlarmPopoverProps {
-  alarm: AlarmData | null
   onSave: (alarm: AlarmData) => void
-  onClear: () => void
+  onClearAll?: () => void
   onClose: () => void
   excludeRef?: React.RefObject<HTMLElement | null>
 }
@@ -14,7 +13,7 @@ const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const TYPE_LABELS: Record<AlarmData['type'], string> = {
   once: '한 번',
   daily: '매일',
-  weekdays: '요일 선택',
+  weekdays: '매주',
   daterange: '기간 설정'
 }
 
@@ -24,25 +23,18 @@ function todayStr(): string {
 }
 
 export default function AlarmPopover({
-  alarm,
   onSave,
-  onClear,
+  onClearAll,
   onClose,
   excludeRef
 }: AlarmPopoverProps): React.JSX.Element {
-  const [hour, setHour] = useState(() => {
-    if (alarm?.time) return parseInt(alarm.time.split(':')[0], 10)
-    return 9
-  })
-  const [minute, setMinute] = useState(() => {
-    if (alarm?.time) return parseInt(alarm.time.split(':')[1], 10)
-    return 0
-  })
-  const [type, setType] = useState<AlarmData['type']>(alarm?.type || 'once')
-  const [date, setDate] = useState(alarm?.date || todayStr())
-  const [weekdays, setWeekdays] = useState<number[]>(alarm?.weekdays || [])
-  const [startDate, setStartDate] = useState(alarm?.startDate || todayStr())
-  const [endDate, setEndDate] = useState(alarm?.endDate || todayStr())
+  const [hour, setHour] = useState(9)
+  const [minute, setMinute] = useState(0)
+  const [type, setType] = useState<AlarmData['type']>('once')
+  const [date, setDate] = useState(todayStr())
+  const [weekdays, setWeekdays] = useState<number[]>([])
+  const [startDate, setStartDate] = useState(todayStr())
+  const [endDate, setEndDate] = useState(todayStr())
 
   const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -98,7 +90,7 @@ export default function AlarmPopover({
 
   return (
     <div className={styles.popover} ref={popoverRef}>
-      <div className={styles.header}>알람 설정</div>
+      <div className={styles.header}>알람 추가</div>
 
       {/* Time picker */}
       <div className={styles.row}>
@@ -200,9 +192,9 @@ export default function AlarmPopover({
 
       {/* Buttons */}
       <div className={styles.buttons}>
-        {alarm ? (
-          <button className={styles.btnDelete} onClick={onClear} type="button">
-            삭제
+        {onClearAll ? (
+          <button className={styles.btnDelete} onClick={onClearAll} type="button">
+            전체 삭제
           </button>
         ) : (
           <div />
@@ -212,7 +204,7 @@ export default function AlarmPopover({
             취소
           </button>
           <button className={styles.btnSave} onClick={handleSave} type="button">
-            저장
+            추가
           </button>
         </div>
       </div>

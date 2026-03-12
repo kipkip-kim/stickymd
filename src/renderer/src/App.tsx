@@ -8,6 +8,44 @@ import { DEFAULT_COLOR, getEffectiveColor, isLightColor } from './constants/colo
 
 const DEFAULT_AUTO_SAVE_MS = 2000
 
+/** Play a pleasant alarm chime using Web Audio API */
+async function playAlarmSound(): Promise<void> {
+  try {
+    const ctx = new AudioContext()
+    // Resume if suspended (Electron autoplay policy)
+    if (ctx.state === 'suspended') {
+      await ctx.resume()
+    }
+    const now = ctx.currentTime
+
+    // Two-tone chime: play twice
+    const notes = [
+      { freq: 880, time: 0, duration: 0.15 },
+      { freq: 1100, time: 0.18, duration: 0.2 },
+      { freq: 880, time: 0.6, duration: 0.15 },
+      { freq: 1100, time: 0.78, duration: 0.2 }
+    ]
+
+    for (const note of notes) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = note.freq
+      gain.gain.setValueAtTime(0.3, now + note.time)
+      gain.gain.exponentialRampToValueAtTime(0.01, now + note.time + note.duration)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now + note.time)
+      osc.stop(now + note.time + note.duration)
+    }
+
+    // Close context after playback
+    setTimeout(() => ctx.close(), 2000)
+  } catch {
+    // Audio not available — skip silently
+  }
+}
+
 const WEEKDAY_SHORT = ['일', '월', '화', '수', '목', '금', '토']
 
 function formatAlarmSummary(alarm: AlarmData): string {
@@ -39,8 +77,9 @@ function App(): React.JSX.Element {
   const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
   const [fontFamily, setFontFamily] = useState('')
   const [fontSize, setFontSize] = useState(16)
-  const [alarm, setAlarm] = useState<AlarmData | null>(null)
+  const [alarms, setAlarms] = useState<AlarmData[]>([])
   const [alarmFiring, setAlarmFiring] = useState(false)
+  const [titlebarStyle, setTitlebarStyle] = useState<'compact' | 'default' | 'spacious'>('default')
   const getEditorRef = useRef<() => Editor | undefined>(() => undefined)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingContentRef = useRef<string | null>(null)
@@ -66,7 +105,7 @@ function App(): React.JSX.Element {
           setColor(data.frontmatter.color || DEFAULT_COLOR)
           setOpacity(data.frontmatter.opacity ?? 1)
           setFontSize(data.frontmatter.fontSize || 16)
-          setAlarm(data.frontmatter.alarm ?? null)
+          setAlarms(data.frontmatter.alarms ?? [])
           setTitle(data.frontmatter.title || '새 메모')
           currentContentRef.current = data.content
           setInitialContent(data.content)
@@ -107,8 +146,13 @@ function App(): React.JSX.Element {
       .then((s) => {
         autoSaveMsRef.current = s.autoSaveSeconds * 1000
         if (s.fontFamily) setFontFamily(s.fontFamily)
+        if (s.titlebarStyle) setTitlebarStyle(s.titlebarStyle)
       })
       .catch(() => { /* keep defaults */ })
+    // Listen for settings changes (e.g. titlebarStyle)
+    window.api.onSettingsChanged((updates) => {
+      if (updates.titlebarStyle) setTitlebarStyle(updates.titlebarStyle)
+    })
     window.api.onRollupChanged((rolledUp) => {
       setIsRolledUp(rolledUp)
     })
@@ -116,15 +160,16 @@ function App(): React.JSX.Element {
     window.api.onFlushSave(() => {
       flushSave()
     })
-    // Listen for alarm-fired event — visual feedback + sync alarm state
+    // Listen for alarm-fired event — visual feedback + sound + sync alarm state
     window.api.onAlarmFired(() => {
       setAlarmFiring(true)
+      playAlarmSound()
       setTimeout(() => setAlarmFiring(false), 5000)
-      // Sync alarm state after auto-disable (e.g. once type)
+      // Sync alarm state after auto-delete (e.g. once type removed from array)
       setTimeout(async () => {
         if (memoIdRef.current) {
-          const updated = await window.api.getAlarm(memoIdRef.current)
-          setAlarm(updated)
+          const updated = await window.api.getAlarms(memoIdRef.current)
+          setAlarms(updated)
         }
       }, 1000)
     })
@@ -140,6 +185,7 @@ function App(): React.JSX.Element {
       window.api.removeAllListeners('memo:rollup-changed')
       window.api.removeAllListeners('memo:flush-save')
       window.api.removeAllListeners('memo:alarm-fired')
+      window.api.removeAllListeners('settings:changed')
     }
   }, [])
 
@@ -230,6 +276,21 @@ function App(): React.JSX.Element {
     []
   )
 
+  // Ctrl+Wheel font size adjustment (FR-01)
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent): void => {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      const delta = e.deltaY < 0 ? 1 : -1
+      const newSize = Math.max(10, Math.min(28, fontSizeRef.current + delta))
+      if (newSize !== fontSizeRef.current) {
+        handleFontSizeChange(newSize)
+      }
+    }
+    document.addEventListener('wheel', handleWheel, { passive: false })
+    return () => document.removeEventListener('wheel', handleWheel)
+  }, [handleFontSizeChange])
+
   // Copy memo content to clipboard
   const handleCopy = useCallback(async () => {
     const markdown = currentContentRef.current
@@ -242,18 +303,27 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  // Alarm handlers
-  const handleAlarmSave = useCallback(async (newAlarm: AlarmData) => {
-    setAlarm(newAlarm)
+  // Alarm handlers (multi-alarm)
+  const handleAlarmAdd = useCallback(async (newAlarm: AlarmData) => {
     if (memoIdRef.current) {
-      await window.api.setAlarm(memoIdRef.current, newAlarm)
+      await window.api.addAlarm(memoIdRef.current, newAlarm)
+      const updated = await window.api.getAlarms(memoIdRef.current)
+      setAlarms(updated)
     }
   }, [])
 
-  const handleAlarmClear = useCallback(async () => {
-    setAlarm(null)
+  const handleAlarmRemove = useCallback(async (index: number) => {
     if (memoIdRef.current) {
-      await window.api.clearAlarm(memoIdRef.current)
+      await window.api.removeAlarm(memoIdRef.current, index)
+      const updated = await window.api.getAlarms(memoIdRef.current)
+      setAlarms(updated)
+    }
+  }, [])
+
+  const handleAlarmClearAll = useCallback(async () => {
+    setAlarms([])
+    if (memoIdRef.current) {
+      await window.api.clearAlarms(memoIdRef.current)
     }
   }, [])
 
@@ -277,9 +347,6 @@ function App(): React.JSX.Element {
     document.addEventListener('mouseup', onUp)
   }, [])
 
-  const handleToolbarInteractEnd = useCallback(() => {
-    toolbarInteractingRef.current = false
-  }, [])
 
   const handleEditorBlur = useCallback(() => {
     setTimeout(() => {
@@ -304,7 +371,7 @@ function App(): React.JSX.Element {
   if (initialContent === null && memoId) {
     return (
       <div data-note-dark={forceDarkNote || undefined} style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: effectiveColor, fontFamily: fontFamily || undefined }}>
-        <Titlebar memoId={memoId} isRolledUp={isRolledUp} color={color} isDark={isDark} onColorChange={handleColorChange} onCopy={handleCopy} title={title} alarm={alarm} onAlarmSave={handleAlarmSave} onAlarmClear={handleAlarmClear} />
+        <Titlebar memoId={memoId} isRolledUp={isRolledUp} color={color} isDark={isDark} onColorChange={handleColorChange} onCopy={handleCopy} title={title} alarms={alarms} onAlarmAdd={handleAlarmAdd} onAlarmClearAll={handleAlarmClearAll} titlebarStyle={titlebarStyle} />
       </div>
     )
   }
@@ -331,32 +398,59 @@ function App(): React.JSX.Element {
         onColorChange={handleColorChange}
         onCopy={handleCopy}
         title={title}
-        alarm={alarm}
-        onAlarmSave={handleAlarmSave}
-        onAlarmClear={handleAlarmClear}
+        alarms={alarms}
+        onAlarmAdd={handleAlarmAdd}
+        onAlarmClearAll={handleAlarmClearAll}
+        titlebarStyle={titlebarStyle}
       />
-      {!isRolledUp && alarm?.enabled && (
+      {!isRolledUp && alarms.length > 0 && (
         <div
           style={{
-            padding: '3px 10px',
-            fontSize: 14,
-            color: alarmFiring ? '#fff' : 'var(--note-text-secondary)',
-            background: alarmFiring ? 'rgba(255, 100, 0, 0.85)' : undefined,
             borderBottom: '1px solid var(--note-border)',
             flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
             cursor: 'default',
-            userSelect: 'none',
-            transition: 'background 0.3s, color 0.3s'
+            userSelect: 'none'
           }}
         >
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: alarmFiring ? 1 : 0.6 }}>
-            <path d="M8 1.5a4.5 4.5 0 00-4.5 4.5c0 2.5-1.5 4-1.5 4h12s-1.5-1.5-1.5-4A4.5 4.5 0 008 1.5z" />
-            <path d="M6.5 13a1.5 1.5 0 003 0" />
-          </svg>
-          {alarmFiring ? '알람!' : formatAlarmSummary(alarm)}
+          {alarms.map((a, i) => (
+            <div
+              key={i}
+              style={{
+                padding: '2px 10px',
+                fontSize: 14,
+                color: alarmFiring ? '#fff' : 'var(--note-text-secondary)',
+                background: alarmFiring ? 'rgba(255, 100, 0, 0.85)' : undefined,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                transition: 'background 0.3s, color 0.3s'
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: alarmFiring ? 1 : 0.6, flexShrink: 0 }}>
+                <path d="M8 1.5a4.5 4.5 0 00-4.5 4.5c0 2.5-1.5 4-1.5 4h12s-1.5-1.5-1.5-4A4.5 4.5 0 008 1.5z" />
+                <path d="M6.5 13a1.5 1.5 0 003 0" />
+              </svg>
+              <span style={{ flex: 1 }}>{alarmFiring ? '알람!' : formatAlarmSummary(a)}</span>
+              <button
+                onClick={() => handleAlarmRemove(i)}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--note-text-secondary)',
+                  cursor: 'pointer',
+                  padding: '0 2px',
+                  fontSize: 14,
+                  lineHeight: 1,
+                  opacity: 0.6,
+                  flexShrink: 0
+                }}
+                title="알람 삭제"
+              >
+                ×
+              </button>
+            </div>
+          ))}
         </div>
       )}
       {!isRolledUp && (

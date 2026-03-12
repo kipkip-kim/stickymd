@@ -5,7 +5,7 @@ import matter from 'gray-matter'
 import { getSaveDir, getTrashDir, getSettings } from './store'
 import { closeMemoWindow } from './window-manager'
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import type { MemoFrontmatter, MemoData } from '../../shared/types'
+import type { MemoFrontmatter, MemoData, AlarmData } from '../../shared/types'
 
 export type { MemoFrontmatter, MemoData }
 
@@ -47,7 +47,9 @@ export async function readMemo(memoId: string): Promise<MemoData | null> {
     // B5: excerpt: false to prevent --- confusion
     const parsed = matter(raw, { excerpt: false })
 
-    const fm = parsed.data as Partial<MemoFrontmatter>
+    const fm = parsed.data as Partial<MemoFrontmatter> & { alarm?: AlarmData }
+    // Backward compat: single alarm → alarms array
+    const alarms = fm.alarms ?? (fm.alarm ? [fm.alarm] : undefined)
     const frontmatter: MemoFrontmatter = {
       title: fm.title || extractTitle(parsed.content),
       created: fm.created || new Date().toISOString(),
@@ -56,7 +58,7 @@ export async function readMemo(memoId: string): Promise<MemoData | null> {
       pinned: fm.pinned ?? false,
       opacity: fm.opacity ?? 1,
       fontSize: fm.fontSize ?? 16,
-      ...(fm.alarm ? { alarm: fm.alarm } : {})
+      ...(alarms ? { alarms } : {})
     }
 
     // Cache content for B6 comparison
@@ -111,9 +113,13 @@ export async function saveMemo(
     modified: new Date().toISOString()
   }
 
-  // Handle explicit alarm deletion (clearAlarm passes alarm: undefined)
-  if (frontmatterUpdates && 'alarm' in frontmatterUpdates && frontmatterUpdates.alarm === undefined) {
-    delete fm.alarm
+  // Handle explicit alarms deletion (clearAlarms passes alarms: undefined)
+  if (frontmatterUpdates && 'alarms' in frontmatterUpdates && frontmatterUpdates.alarms === undefined) {
+    delete fm.alarms
+  }
+  // Clean up legacy single alarm field
+  if ('alarm' in (fm as unknown as Record<string, unknown>)) {
+    delete (fm as unknown as Record<string, unknown>).alarm
   }
 
   // Compose file with frontmatter
@@ -228,19 +234,20 @@ export async function importMemo(): Promise<MemoData | null> {
     const raw = await readFile(filePath, 'utf-8')
 
     let content: string
-    let fm: Partial<MemoFrontmatter> = {}
+    let fm: (Partial<MemoFrontmatter> & { alarm?: AlarmData }) = {}
 
     if (ext === '.txt') {
       content = raw
     } else {
       const parsed = matter(raw, { excerpt: false })
       content = parsed.content
-      fm = parsed.data as Partial<MemoFrontmatter>
+      fm = parsed.data as Partial<MemoFrontmatter> & { alarm?: AlarmData }
     }
 
     const newId = randomUUID()
     const saveDir = await getSaveDir()
 
+    const importAlarms = fm.alarms ?? (fm.alarm ? [fm.alarm] : undefined)
     const frontmatter: MemoFrontmatter = {
       title: fm.title || extractTitle(content),
       created: fm.created || new Date().toISOString(),
@@ -249,7 +256,7 @@ export async function importMemo(): Promise<MemoData | null> {
       pinned: fm.pinned ?? false,
       opacity: fm.opacity ?? 1,
       fontSize: fm.fontSize ?? 16,
-      ...(fm.alarm ? { alarm: fm.alarm } : {})
+      ...(importAlarms ? { alarms: importAlarms } : {})
     }
 
     const fileContent = matter.stringify(content, frontmatter)
@@ -277,18 +284,19 @@ export async function importMemoFromPath(filePath: string): Promise<MemoData | {
 
     const raw = await readFile(filePath, 'utf-8')
     let content: string
-    let fm: Partial<MemoFrontmatter> = {}
+    let fm: (Partial<MemoFrontmatter> & { alarm?: AlarmData }) = {}
 
     if (ext === '.md') {
       const parsed = matter(raw, { excerpt: false })
       content = parsed.content
-      fm = parsed.data as Partial<MemoFrontmatter>
+      fm = parsed.data as Partial<MemoFrontmatter> & { alarm?: AlarmData }
     } else {
       content = raw
     }
 
     const newId = randomUUID()
     const saveDir = await getSaveDir()
+    const pathAlarms = fm.alarms ?? (fm.alarm ? [fm.alarm] : undefined)
     const frontmatter: MemoFrontmatter = {
       title: fm.title || extractTitle(content),
       created: fm.created || new Date().toISOString(),
@@ -297,7 +305,7 @@ export async function importMemoFromPath(filePath: string): Promise<MemoData | {
       pinned: fm.pinned ?? false,
       opacity: fm.opacity ?? 1,
       fontSize: fm.fontSize ?? 16,
-      ...(fm.alarm ? { alarm: fm.alarm } : {})
+      ...(pathAlarms ? { alarms: pathAlarms } : {})
     }
 
     const fileContent = matter.stringify(content, frontmatter)
@@ -369,7 +377,8 @@ export async function listTrash(): Promise<MemoData[]> {
       try {
         const raw = await readFile(filePath, 'utf-8')
         const parsed = matter(raw, { excerpt: false })
-        const fm = parsed.data as Partial<MemoFrontmatter>
+        const fm = parsed.data as Partial<MemoFrontmatter> & { alarm?: AlarmData }
+        const trashAlarms = fm.alarms ?? (fm.alarm ? [fm.alarm] : undefined)
         const frontmatter: MemoFrontmatter = {
           title: fm.title || extractTitle(parsed.content),
           created: fm.created || new Date().toISOString(),
@@ -378,7 +387,7 @@ export async function listTrash(): Promise<MemoData[]> {
           pinned: fm.pinned ?? false,
           opacity: fm.opacity ?? 1,
           fontSize: fm.fontSize ?? 16,
-          ...(fm.alarm ? { alarm: fm.alarm } : {})
+          ...(trashAlarms ? { alarms: trashAlarms } : {})
         }
         memos.push({ id, frontmatter, content: parsed.content })
       } catch {
@@ -508,23 +517,34 @@ export function registerMemoFileIPC(): void {
     return importMemoFromPath(filePath)
   })
 
-  // Alarm operations
-  ipcMain.handle('memo:set-alarm', async (_event, memoId: string, alarm: MemoFrontmatter['alarm']) => {
+  // Alarm operations (multi-alarm)
+  ipcMain.handle('memo:add-alarm', async (_event, memoId: string, alarm: AlarmData) => {
     const memo = await readMemo(memoId)
     if (!memo) return false
-    await saveMemo(memoId, memo.content, { alarm })
+    const existing = memo.frontmatter.alarms ?? []
+    await saveMemo(memoId, memo.content, { alarms: [...existing, alarm] })
     return true
   })
 
-  ipcMain.handle('memo:clear-alarm', async (_event, memoId: string) => {
+  ipcMain.handle('memo:remove-alarm', async (_event, memoId: string, index: number) => {
     const memo = await readMemo(memoId)
     if (!memo) return false
-    await saveMemo(memoId, memo.content, { alarm: undefined })
+    const existing = memo.frontmatter.alarms ?? []
+    if (index < 0 || index >= existing.length) return false
+    const updated = existing.filter((_, i) => i !== index)
+    await saveMemo(memoId, memo.content, { alarms: updated.length > 0 ? updated : undefined })
     return true
   })
 
-  ipcMain.handle('memo:get-alarm', async (_event, memoId: string) => {
+  ipcMain.handle('memo:get-alarms', async (_event, memoId: string) => {
     const memo = await readMemo(memoId)
-    return memo?.frontmatter.alarm ?? null
+    return memo?.frontmatter.alarms ?? []
+  })
+
+  ipcMain.handle('memo:clear-alarms', async (_event, memoId: string) => {
+    const memo = await readMemo(memoId)
+    if (!memo) return false
+    await saveMemo(memoId, memo.content, { alarms: undefined })
+    return true
   })
 }

@@ -215,8 +215,8 @@ function MemoList(): React.JSX.Element {
         if (next.has(memoId)) next.delete(memoId)
         else next.add(memoId)
       } else {
-        next.clear()
-        next.add(memoId)
+        if (next.has(memoId)) next.delete(memoId)
+        else next.add(memoId)
       }
 
       return next
@@ -500,9 +500,9 @@ function MemoList(): React.JSX.Element {
                 className={styles.colorDot}
                 style={{ backgroundColor: memo.frontmatter.color }}
               />
-              {memo.frontmatter.alarm?.enabled && (
-                <span className={styles.alarmBadge} title={`알람: ${memo.frontmatter.alarm.time}`}>
-                  🔔
+              {memo.frontmatter.alarms && memo.frontmatter.alarms.length > 0 && (
+                <span className={styles.alarmBadge} title={`알람 ${memo.frontmatter.alarms.length}개`}>
+                  🔔{memo.frontmatter.alarms.length > 1 ? memo.frontmatter.alarms.length : ''}
                 </span>
               )}
               <span className={styles.memoTitle}>{memo.frontmatter.title}</span>
@@ -560,9 +560,9 @@ function TrashList(): React.JSX.Element {
           next.add(memoId)
         }
       } else {
-        // Normal click: select only this
-        next.clear()
-        next.add(memoId)
+        // Normal click: toggle
+        if (next.has(memoId)) next.delete(memoId)
+        else next.add(memoId)
       }
 
       return next
@@ -892,6 +892,20 @@ function SettingsPanel(): React.JSX.Element {
           <option value="system">시스템 설정 따르기</option>
           <option value="light">라이트</option>
           <option value="dark">다크</option>
+        </select>
+      </div>
+
+      {/* Titlebar style */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>제목 줄 크기</label>
+        <select
+          className={styles.settingSelect}
+          value={settings.titlebarStyle}
+          onChange={(e) => updateSetting('titlebarStyle', e.target.value as 'compact' | 'default' | 'spacious')}
+        >
+          <option value="compact">컴팩트 (28px)</option>
+          <option value="default">기본 (36px)</option>
+          <option value="spacious">넓게 (44px)</option>
         </select>
       </div>
 

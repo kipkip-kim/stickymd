@@ -14,6 +14,7 @@ export interface AppSettings {
   immediateDelete: boolean
   sortBy: 'modified' | 'created' | 'title'
   sortOrder: 'asc' | 'desc'
+  titlebarStyle: 'compact' | 'default' | 'spacious'
 }
 
 export interface MemoFrontmatter {
@@ -24,7 +25,7 @@ export interface MemoFrontmatter {
   pinned: boolean
   opacity: number
   fontSize: number
-  alarm?: AlarmData
+  alarms?: AlarmData[]
 }
 
 export interface AlarmData {

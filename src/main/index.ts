@@ -12,6 +12,9 @@ import { registerThemeIPC } from './lib/theme'
 import { registerGlobalHotkey, unregisterGlobalHotkey } from './lib/hotkey'
 import { startAlarmScheduler, stopAlarmScheduler } from './lib/alarm-scheduler'
 
+// Allow audio autoplay (for alarm sound)
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+
 // B22: Single instance lock — second launch focuses the first instance
 const gotTheLock = app.requestSingleInstanceLock()
 
