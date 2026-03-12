@@ -31,7 +31,7 @@ function getInitialTab(): Tab {
 
 /** Parse checklist progress from markdown content */
 function parseChecklistProgress(content: string): { total: number; checked: number } | null {
-  const matches = [...content.matchAll(/^- \[([ xX])\]/gm)]
+  const matches = [...content.matchAll(/^[*-] \[([ xX])\]/gm)]
   if (matches.length === 0) return null
   const checked = matches.filter((m) => m[1] !== ' ').length
   return { total: matches.length, checked }
