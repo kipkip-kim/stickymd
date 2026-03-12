@@ -191,6 +191,73 @@
   color: inherit;
 }
 
+/* Toggle block (collapsible) */
+.ProseMirror .toggle-block {
+  margin: 4px 0;
+  padding: 0;
+  position: relative;
+}
+
+/* Toggle button (▶) — outside contentDOM */
+.ProseMirror .toggle-block > .toggle-btn {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--note-text-secondary);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: transform 0.15s, background 0.1s;
+  user-select: none;
+  z-index: 1;
+}
+
+.ProseMirror .toggle-block.toggle-open > .toggle-btn {
+  transform: rotate(90deg);
+}
+
+.ProseMirror .toggle-block > .toggle-btn:hover {
+  background: var(--note-hover);
+  color: var(--note-text);
+}
+
+/* Content wrapper (ProseMirror contentDOM) */
+.ProseMirror .toggle-block > .toggle-content-wrapper {
+  padding-left: 22px;
+}
+
+/* Summary node — styled as header, editable */
+.ProseMirror .toggle-block > .toggle-content-wrapper > summary {
+  list-style: none;
+  padding: 2px 0;
+  font-weight: 500;
+  cursor: text;
+}
+.ProseMirror .toggle-block > .toggle-content-wrapper > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Hide content (not summary) when closed */
+.ProseMirror .toggle-block:not(.toggle-open) > .toggle-content-wrapper > :not(summary) {
+  display: none;
+}
+
+/* Content children when open — continuous left border */
+.ProseMirror .toggle-block.toggle-open > .toggle-content-wrapper > :not(summary) {
+  border-left: 2px solid var(--note-border);
+  padding-left: 10px;
+  /* Remove vertical margins so borders connect into one continuous line */
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
 /* Drag-and-drop overlay */
 .drag-overlay {
   position: absolute;
@@ -207,6 +274,6 @@
 
 .drag-overlay span {
   color: rgba(59, 130, 246, 0.9);
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 600;
 }

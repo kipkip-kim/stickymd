@@ -123,6 +123,8 @@ export async function createMemoWindow(
   })
 
 
+
+
   win.on('ready-to-show', () => {
     win.show()
     // Open DevTools in dev mode

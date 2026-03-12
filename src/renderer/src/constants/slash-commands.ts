@@ -18,6 +18,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: 'divider', labelEn: 'divider', labelKo: '구분선', description: 'Horizontal Rule', icon: '—' },
   { id: 'bold', labelEn: 'bold', labelKo: '굵게', description: 'Bold', icon: 'B' },
   { id: 'italic', labelEn: 'italic', labelKo: '기울임', description: 'Italic', icon: 'I' },
+  { id: 'toggle', labelEn: 'toggle', labelKo: '토글', description: 'Toggle Block', icon: '▶' },
   { id: 'link', labelEn: 'link', labelKo: '링크', description: 'Link', icon: '🔗' }
 ]
 

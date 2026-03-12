@@ -9,6 +9,7 @@ import { replaceAll } from '@milkdown/kit/utils'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
 import { underlinePlugin } from '../plugins/underline-plugin'
 import { searchPlugin } from '../plugins/search-plugin'
+import { togglePlugin } from '../plugins/toggle-plugin'
 import { useSlashCommand } from '../hooks/useSlashCommand'
 import { useSlashExecute } from '../hooks/useSlashExecute'
 import SlashDropdown from './SlashDropdown'
@@ -70,6 +71,7 @@ function MilkdownEditor({
       .use(gfm)
       .use(underlinePlugin)
       .use(searchPlugin)
+      .use(togglePlugin)
       .use(history)
       .use(listener)
       .use(clipboard)
@@ -231,7 +233,7 @@ function MilkdownEditor({
       )}
       {dragOver && (
         <div className="drag-overlay">
-          <span>파일을 여기에 놓으세요</span>
+          <span>파일을 여기에 놓으세요<br/><small style={{fontWeight: 400, opacity: 0.7}}>내용만 복사됩니다 (원본 파일 유지)</small></span>
         </div>
       )}
     </div>

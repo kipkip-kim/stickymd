@@ -28,7 +28,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   immediateDelete: false,
   sortBy: 'modified',
   sortOrder: 'desc',
-  titlebarStyle: 'default'
+  titlebarStyle: 'default',
+  toolbarItems: ['bold', 'underline', 'checkbox', 'bullet']
 }
 
 export const DEFAULT_STATE: AppState = {

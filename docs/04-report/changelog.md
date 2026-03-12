@@ -1,5 +1,77 @@
 # StickyMD Changelog
 
+## [2026-03-12] - Phase 16: Toggle Block + Customizable Toolbar
+
+### Added
+- Notion-style toggle block (collapsible content) with `> ` input rule
+- Native HTML5 `<details>/<summary>` elements for markdown compatibility
+- Toggle state persistence (open/closed) in markdown files
+- `/토글` (toggle) slash command for easy block insertion
+- Customizable toolbar with 14 formatting buttons
+- Toolbar settings UI with add/remove buttons and reorder arrows
+- Two-section toolbar configuration (selected + available items)
+- Drag-and-drop reordering of toolbar buttons via arrow controls
+- Dynamic toolbar rendering based on settings.json
+
+### Fixed
+- Strikethrough command name consistency (GFM preset)
+- Remark plugin ordering (prepend before htmlTransformer)
+- Drag-and-drop overlay text clarification ("내용만 복사됩니다")
+- Font size increase for drag-and-drop overlay visibility
+
+### Changed
+- `> ` input rule: blockquote → toggle block (blockquote via `/인용` only)
+- Summary content model: restricted to plain text (no marks) for simplicity
+- NodeView architecture: div-based instead of native `<details>` for browser compatibility
+- Toolbar button count: removed 6-item limit (user preference, now supports all 14)
+- Toolbar UI: replaced checkbox list with add/remove button pattern (better UX)
+
+### Technical Details
+- **Match Rate**: 93% (27/39 design items implemented, 12 justified changes)
+- **Part A (Toggle)**: 90% match (div-based NodeView, state persistence)
+- **Part B (Toolbar)**: 95% match (dynamic rendering, settings sync)
+- **Files Added**: 2 (toggle-plugin.ts, toolbar-items.ts)
+- **Files Modified**: 10 (components, types, CSS)
+- **Lines Added**: ~700
+- **Architecture Compliance**: 95% (file locations, import flow, conventions)
+- **Duration**: 5-6 days (2026-03-07 to 2026-03-12)
+
+### Features Completed
+- Toggle block ProseMirror schema with 2 node types (details + details_summary)
+- Markdown round-trip: ProseMirror ↔ `<details>` HTML (full fidelity)
+- Remark plugin for `<details>` parsing and serialization (combineDetailsBlocks)
+- InputRule override: commonmark blockquote → toggle (same regex, different action)
+- NodeView with toggle button (▶) and open/closed CSS classes
+- Keymap for Backspace (unwrap) and Delete (remove) handling
+- 14 toolbar items: bold, underline, italic, strikethrough, h1-h3, checkbox, bullet, ordered, quote, code, hr, toggle
+- Settings persistence: toolbarItems array in settings.json
+- IPC integration: settings:changed broadcast to all memo windows
+- Real-time toolbar reflection: instant update on settings change
+
+### Edge Cases Handled
+- Summary at start of toggle + Backspace → unwrap entire toggle
+- Empty first block + Backspace → remove empty block or unwrap toggle
+- NodeSelection of toggle block → Delete removes entire toggle
+- Open attribute preservation in markdown (e.g., `<details open>`)
+- Toolbar with all 14 items selected (no UI breaking)
+- Dark mode: CSS variables for toggle styling (--note-border, --note-hover)
+
+### Known Limitations (Tech Debt)
+- Summary formatting: only plain text supported (no bold/italic in titles)
+- Toggle nesting: not supported (v2.0 feature, content model change needed)
+- Images in toggle: not supported (v2.0, base64 or file-based)
+- Toolbar width overflow: no automatic wrap/scroll (UI CSS enhancement possible)
+- KeyMap edge cases: Backspace unwrap logic complex (gapcursor plugin could simplify)
+
+### Recommendations for v2.0
+- Support toggle nesting by changing content model: `'details | block+'`
+- Allow formatting in summary: change content from `text*` to `inline*`
+- Add image paste/embed in toggle content
+- Implement toolbar horizontal scroll or two-row layout
+- Extract multi-select logic to reusable hook (used by memo list + trash list)
+
+---
+
 ## [2026-03-12] - Phase 13b Alarm System
 
 ### Added

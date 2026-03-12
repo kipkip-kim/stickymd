@@ -15,6 +15,7 @@ export interface AppSettings {
   sortBy: 'modified' | 'created' | 'title'
   sortOrder: 'asc' | 'desc'
   titlebarStyle: 'compact' | 'default' | 'spacious'
+  toolbarItems: string[]
 }
 
 export interface MemoFrontmatter {

@@ -80,6 +80,18 @@ export function useSlashExecute(getEditor: () => Editor | undefined) {
         case 'italic':
           editor.action(callCommand(toggleEmphasisCommand.key))
           break
+        case 'toggle': {
+          const { schema } = view.state
+          const detailsType = schema.nodes['details']
+          const summaryType = schema.nodes['details_summary']
+          if (detailsType && summaryType) {
+            const summary = summaryType.create(null)
+            const para = schema.nodes.paragraph.create(null)
+            const details = detailsType.create({ open: true }, [summary, para])
+            view.dispatch(view.state.tr.replaceSelectionWith(details))
+          }
+          break
+        }
         case 'link': {
           // Insert a link placeholder
           const { schema, tr } = view.state

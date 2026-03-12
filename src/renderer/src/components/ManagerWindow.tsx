@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { MemoData, AppSettings } from '../../../shared/types'
+import { TOOLBAR_ITEMS } from '../constants/toolbar-items'
 import styles from './ManagerWindow.module.css'
 
 type Tab = 'memos' | 'trash' | 'settings'
@@ -26,6 +27,14 @@ function getInitialTab(): Tab {
     if (t in TAB_LABELS) return t
   }
   return 'memos'
+}
+
+/** Parse checklist progress from markdown content */
+function parseChecklistProgress(content: string): { total: number; checked: number } | null {
+  const matches = [...content.matchAll(/^- \[([ xX])\]/gm)]
+  if (matches.length === 0) return null
+  const checked = matches.filter((m) => m[1] !== ' ').length
+  return { total: matches.length, checked }
 }
 
 /** Format relative time (e.g. "3분 전", "2시간 전", "어제") */
@@ -385,7 +394,7 @@ function MemoList(): React.JSX.Element {
     >
       {dragOver && (
         <div className={styles.dropOverlay}>
-          <span>.md / .txt 파일을 놓아 가져오기</span>
+          <span>.md / .txt 파일을 놓아 가져오기<br/><small style={{fontWeight: 400, opacity: 0.7}}>내용만 복사됩니다 (원본 파일 유지)</small></span>
         </div>
       )}
       {/* Search bar */}
@@ -404,7 +413,7 @@ function MemoList(): React.JSX.Element {
       {/* Action bar */}
       <div className={styles.actionBar}>
         <button className={styles.actionBtn} onClick={handleNewMemo}>새 메모</button>
-        <button className={styles.actionBtn} onClick={handleImport}>가져오기</button>
+        <button className={styles.actionBtn} onClick={handleImport}>내용 가져오기</button>
         <button
           className={styles.actionBtn}
           onClick={handleExport}
@@ -505,6 +514,18 @@ function MemoList(): React.JSX.Element {
                   🔔{memo.frontmatter.alarms.length > 1 ? memo.frontmatter.alarms.length : ''}
                 </span>
               )}
+              {(() => {
+                const progress = parseChecklistProgress(memo.content)
+                if (!progress) return null
+                return (
+                  <span
+                    className={styles.checklistBadge}
+                    title={`체크리스트 ${progress.checked}/${progress.total}`}
+                  >
+                    ☑{progress.checked}/{progress.total}
+                  </span>
+                )
+              })()}
               <span className={styles.memoTitle}>{memo.frontmatter.title}</span>
               <span className={styles.memoTime}>
                 {formatRelativeTime(memo.frontmatter.modified)}
@@ -823,7 +844,7 @@ function SettingsPanel(): React.JSX.Element {
           <input
             type="text"
             className={styles.fontSearchInput}
-            value={showFontDropdown ? fontSearch : settings.fontFamily}
+            value={showFontDropdown ? fontSearch : (settings.fontFamily === "Pretendard, '맑은 고딕', sans-serif" ? '기본값 (시스템)' : settings.fontFamily)}
             placeholder="폰트 검색..."
             onFocus={() => { setShowFontDropdown(true); setFontSearch('') }}
             onChange={(e) => setFontSearch(e.target.value)}
@@ -865,8 +886,19 @@ function SettingsPanel(): React.JSX.Element {
                 </span>
               </button>
             )
+            const DEFAULT_FONT = "Pretendard, '맑은 고딕', sans-serif"
             return (
               <div className={styles.fontDropdown}>
+                <button
+                  className={`${styles.fontItem} ${settings.fontFamily === DEFAULT_FONT ? styles.fontItemActive : ''}`}
+                  onClick={() => {
+                    updateSetting('fontFamily', DEFAULT_FONT)
+                    setShowFontDropdown(false)
+                  }}
+                >
+                  <span className={styles.fontItemName}>기본값 (시스템)</span>
+                </button>
+                <div className={styles.fontDivider} />
                 {favs.length > 0 && (
                   <>
                     <div className={styles.fontSectionLabel}>즐겨찾기</div>
@@ -907,6 +939,80 @@ function SettingsPanel(): React.JSX.Element {
           <option value="default">기본 (36px)</option>
           <option value="spacious">넓게 (44px)</option>
         </select>
+      </div>
+
+      {/* Toolbar items */}
+      <div className={styles.settingRow}>
+        <label className={styles.settingLabel}>툴바 버튼</label>
+        <div className={styles.toolbarSettings}>
+          <div className={styles.toolbarSelected}>
+            <div className={styles.toolbarSectionLabel}>선택됨 ({settings.toolbarItems.length}개)</div>
+            {settings.toolbarItems.map((itemId, idx) => {
+              const def = TOOLBAR_ITEMS.find((t) => t.id === itemId)
+              if (!def) return null
+              return (
+                <div key={itemId} className={styles.toolbarItemRow}>
+                  <span className={styles.toolbarItemIcon} style={def.style}>{def.icon}</span>
+                  <span className={styles.toolbarItemLabel}>{def.label}</span>
+                  <div className={styles.toolbarItemActions}>
+                    <button
+                      className={styles.toolbarArrowBtn}
+                      disabled={idx === 0}
+                      onClick={() => {
+                        const next = [...settings.toolbarItems]
+                        ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
+                        updateSetting('toolbarItems', next)
+                      }}
+                      title="위로"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      className={styles.toolbarArrowBtn}
+                      disabled={idx === settings.toolbarItems.length - 1}
+                      onClick={() => {
+                        const next = [...settings.toolbarItems]
+                        ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
+                        updateSetting('toolbarItems', next)
+                      }}
+                      title="아래로"
+                    >
+                      ▼
+                    </button>
+                    <button
+                      className={styles.toolbarRemoveBtn}
+                      onClick={() => {
+                        updateSetting('toolbarItems', settings.toolbarItems.filter((id) => id !== itemId))
+                      }}
+                      title="제거"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <div className={styles.toolbarAvailable}>
+            <div className={styles.toolbarSectionLabel}>사용 가능</div>
+            {TOOLBAR_ITEMS.filter((t) => !settings.toolbarItems.includes(t.id)).map((def) => (
+              <div key={def.id} className={styles.toolbarItemRow}>
+                <span className={styles.toolbarItemIcon} style={def.style}>{def.icon}</span>
+                <span className={styles.toolbarItemLabel}>{def.label}</span>
+                <button
+                  className={styles.toolbarAddBtn}
+                  disabled={false}
+                  onClick={() => {
+                    updateSetting('toolbarItems', [...settings.toolbarItems, def.id])
+                  }}
+                  title="추가"
+                >
+                  +
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Auto save seconds */}

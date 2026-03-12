@@ -260,11 +260,14 @@ export function registerSettingsIPC(): void {
       }
     }
 
-    // Broadcast titlebar style change to all memo windows
-    if (updates.titlebarStyle !== undefined) {
+    // Broadcast setting changes to all memo windows
+    const broadcast: Partial<AppSettings> = {}
+    if (updates.titlebarStyle !== undefined) broadcast.titlebarStyle = updates.titlebarStyle
+    if (updates.toolbarItems !== undefined) broadcast.toolbarItems = updates.toolbarItems
+    if (Object.keys(broadcast).length > 0) {
       for (const win of BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed()) {
-          win.webContents.send('settings:changed', { titlebarStyle: updates.titlebarStyle })
+          win.webContents.send('settings:changed', broadcast)
         }
       }
     }

@@ -88,7 +88,7 @@
 
 .dropOverlay span {
   color: rgba(59, 130, 246, 0.9);
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 600;
 }
 
@@ -325,6 +325,13 @@
   font-size: 11px;
   flex-shrink: 0;
   opacity: 0.7;
+}
+
+.checklistBadge {
+  font-size: 11px;
+  flex-shrink: 0;
+  opacity: 0.6;
+  color: var(--text-secondary);
 }
 
 .memoTitle {
@@ -567,4 +574,96 @@
   height: 1px;
   background: var(--border-secondary);
   margin: 4px 0;
+}
+
+/* Toolbar settings */
+.toolbarSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.toolbarSelected,
+.toolbarAvailable {
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.toolbarSectionLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+  padding: 0 4px;
+}
+
+.toolbarItemRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 4px;
+}
+
+.toolbarItemRow:hover {
+  background: var(--bg-hover);
+}
+
+.toolbarItemIcon {
+  width: 20px;
+  text-align: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.toolbarItemLabel {
+  flex: 1;
+  font-size: 13px;
+}
+
+.toolbarItemActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.toolbarArrowBtn,
+.toolbarRemoveBtn,
+.toolbarAddBtn {
+  background: none;
+  border: 1px solid var(--border-secondary);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.toolbarArrowBtn:hover,
+.toolbarAddBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.toolbarRemoveBtn:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.toolbarArrowBtn:disabled,
+.toolbarAddBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.toolbarAddBtn {
+  font-size: 14px;
+  font-weight: 600;
 }

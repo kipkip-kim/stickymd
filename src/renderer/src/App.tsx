@@ -83,6 +83,7 @@ function App(): React.JSX.Element {
   const [alarms, setAlarms] = useState<AlarmData[]>([])
   const [alarmFiring, setAlarmFiring] = useState(false)
   const [titlebarStyle, setTitlebarStyle] = useState<'compact' | 'default' | 'spacious'>('default')
+  const [toolbarItems, setToolbarItems] = useState<string[]>(['bold', 'underline', 'checkbox', 'bullet'])
 
   const getEditorRef = useRef<() => Editor | undefined>(() => undefined)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -151,11 +152,13 @@ function App(): React.JSX.Element {
         autoSaveMsRef.current = s.autoSaveSeconds * 1000
         if (s.fontFamily) setFontFamily(s.fontFamily)
         if (s.titlebarStyle) setTitlebarStyle(s.titlebarStyle)
+        if (s.toolbarItems) setToolbarItems(s.toolbarItems)
       })
       .catch(() => { /* keep defaults */ })
     // Listen for settings changes (e.g. titlebarStyle)
     window.api.onSettingsChanged((updates) => {
       if (updates.titlebarStyle) setTitlebarStyle(updates.titlebarStyle)
+      if (updates.toolbarItems) setToolbarItems(updates.toolbarItems)
     })
     window.api.onRollupChanged((rolledUp) => {
       setIsRolledUp(rolledUp)
@@ -552,6 +555,7 @@ function App(): React.JSX.Element {
                 onOpacityChange={setOpacity}
                 fontSize={fontSize}
                 onFontSizeChange={handleFontSizeChange}
+                toolbarItems={toolbarItems}
               />
             </div>
           )}
